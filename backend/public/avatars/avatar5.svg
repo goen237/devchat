@@ -1,0 +1,12 @@
+<!-- Simple SVG Avatar 5 - Animal mignon -->
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="64" cy="64" r="64" fill="#4CAF50"/>
+  <circle cx="64" cy="55" r="28" fill="#FFA726"/>
+  <circle cx="45" cy="40" r="8" fill="#FFA726"/>
+  <circle cx="83" cy="40" r="8" fill="#FFA726"/>
+  <circle cx="58" cy="50" r="3" fill="#333"/>
+  <circle cx="70" cy="50" r="3" fill="#333"/>
+  <ellipse cx="64" cy="60" rx="3" ry="2" fill="#333"/>
+  <path d="M58 65 Q64 70 70 65" stroke="#333" stroke-width="2" fill="none"/>
+  <ellipse cx="64" cy="95" rx="20" ry="25" fill="#66BB6A"/>
+</svg>

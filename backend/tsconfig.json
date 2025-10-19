@@ -16,6 +16,9 @@
         "emitDecoratorMetadata": true, // Emit design-type metadata for decorated declarations
         "forceConsistentCasingInFileNames": true // Disallow inconsistently-cased references to the same file
     },
-    "include": ["src"],
+    "include": [
+      "src",
+      "src/types"
+    ],
     "exclude": ["node_modules", "dist"]
 }

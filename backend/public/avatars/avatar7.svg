@@ -1,0 +1,12 @@
+<!-- Simple SVG Avatar 7 - Casual guy -->
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="64" cy="64" r="64" fill="#4CAF50"/>
+  <circle cx="64" cy="48" r="20" fill="#FFEB3B"/>
+  <path d="M48 40 Q64 30 80 40 Q80 50 48 50" fill="#795548"/>
+  <circle cx="59" cy="45" r="2" fill="#333"/>
+  <circle cx="69" cy="45" r="2" fill="#333"/>
+  <path d="M56 53 Q64 58 72 53" stroke="#333" stroke-width="2" fill="none"/>
+  <ellipse cx="64" cy="95" rx="28" ry="35" fill="#FF5722"/>
+  <circle cx="51" cy="85" r="3" fill="#FFFFFF"/>
+  <circle cx="77" cy="85" r="3" fill="#FFFFFF"/>
+</svg>

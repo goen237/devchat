@@ -10,12 +10,12 @@ import { generateToken } from "../utils/jwt";
  * Registriert einen neuen User mit Username, Email und Passwort
  * @throws Error wenn User existiert
  */
-export const registerUser = async (username: string, email: string, password: string) => {
+export const registerUser = async (username: string, email: string, password: string, semester: number) => {
 	const userRepo = AppDataSource.getRepository(User);
 	const existing = await userRepo.findOneBy({ email });
 	if (existing) throw new Error("User exists");
 	const passwordHash = await hashPassword(password);
-	const user = userRepo.create({ username, email, passwordHash });
+	const user = userRepo.create({ username, email, passwordHash, semester });
 	await userRepo.save(user);
 	return user;
 };
@@ -30,7 +30,7 @@ export const loginUser = async (email: string, password: string) => {
 	if (!user) throw new Error("Invalid credentials");
 	const valid = await comparePasswords(password, user.passwordHash);
 	if (!valid) throw new Error("Invalid credentials");
-	const token = generateToken({ userId: user.id }, "1h");
+	const token = generateToken({ id: user.id }, "1h");
 	return { token, user };
 };
 
@@ -44,3 +44,4 @@ export const handleGoogleCallback = (user: { id?: string } | undefined, res: imp
 	const token = generateToken({ userId: user.id }, "1h");
 	res.redirect(`/?token=${token}`);
 };
+

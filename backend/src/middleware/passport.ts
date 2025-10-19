@@ -6,9 +6,9 @@ import { User } from "../entities/User";
 passport.use(
   new GoogleStrategy(
     {
-      clientID: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      callbackURL: process.env.GOOGLE_CALLBACK_URL || "/auth/google/callback",
+      clientID: process.env.GOOGLE_CLIENT_ID || "your-google-client-id",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "your-google-client-secret",
+      callbackURL: process.env.GOOGLE_CALLBACK_URL || "api/auth/google/callback",
     },
     async (
       accessToken: string,

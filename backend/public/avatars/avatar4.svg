@@ -1,0 +1,11 @@
+<!-- Simple SVG Avatar 4 - Robot/Tech -->
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="64" cy="64" r="64" fill="#607D8B"/>
+  <rect x="44" y="35" width="40" height="35" rx="5" fill="#37474F"/>
+  <circle cx="55" cy="50" r="4" fill="#00E676"/>
+  <circle cx="73" cy="50" r="4" fill="#00E676"/>
+  <rect x="60" y="58" width="8" height="3" fill="#00E676"/>
+  <rect x="50" y="75" width="28" height="20" rx="3" fill="#546E7A"/>
+  <rect x="56" y="80" width="16" height="3" fill="#00E676"/>
+  <ellipse cx="64" cy="105" rx="25" ry="30" fill="#455A64"/>
+</svg>
