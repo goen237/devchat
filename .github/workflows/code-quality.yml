@@ -1,0 +1,121 @@
+# Code Quality & Security Checks
+
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Linting & Type Checking
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        project: [backend, frontend]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.project }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./${{ matrix.project }}
+        run: npm ci
+
+      - name: Run ESLint
+        working-directory: ./${{ matrix.project }}
+        run: npm run lint || echo "No lint script configured"
+        continue-on-error: true
+
+      - name: TypeScript type check
+        working-directory: ./${{ matrix.project }}
+        run: npx tsc --noEmit
+
+  security:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: NPM Audit - Backend
+        working-directory: ./backend
+        run: |
+          npm audit --audit-level=high || true
+          npm audit --json > backend-audit.json || true
+
+      - name: NPM Audit - Frontend
+        working-directory: ./frontend
+        run: |
+          npm audit --audit-level=high || true
+          npm audit --json > frontend-audit.json || true
+
+      - name: Upload audit results
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-results
+          path: |
+            backend/backend-audit.json
+            frontend/frontend-audit.json
+        continue-on-error: true
+
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'javascript', 'typescript' ]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{matrix.language}}"

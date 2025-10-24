@@ -1,0 +1,46 @@
+# Dependency Updates with Dependabot
+# Automatically checks for dependency updates
+
+name: Dependency Updates
+
+on:
+  schedule:
+    - cron: '0 0 * * MON'  # Weekly on Monday at midnight
+  workflow_dispatch:
+
+jobs:
+  update-dependencies:
+    name: Check for dependency updates
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        project: [backend, frontend]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.project }}/package-lock.json
+
+      - name: Check for outdated packages
+        working-directory: ./${{ matrix.project }}
+        run: |
+          echo "Checking for outdated packages in ${{ matrix.project }}..."
+          npm outdated || true
+
+      - name: Generate dependency report
+        working-directory: ./${{ matrix.project }}
+        run: |
+          npm list --depth=0 > dependencies-${{ matrix.project }}.txt || true
+
+      - name: Upload dependency report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-report-${{ matrix.project }}
+          path: ${{ matrix.project }}/dependencies-${{ matrix.project }}.txt
