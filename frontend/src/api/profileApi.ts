@@ -1,22 +1,15 @@
 import { api } from "./client";
 
-export async function uploadAvatar(token: string, file: File) {
-  const formData = new FormData();
-  formData.append("avatar", file);
-  try {
-    const res = await api.post("/profile/avatar", formData, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "multipart/form-data"
-      }
-    });
-    return res.data;
-  } catch (error) {
-    console.error("Fehler beim Hochladen des Avatars:", error);
-    throw new Error("Fehler beim Hochladen des Avatars");
-  }
-}
+/**
+ * Profile API - Verwaltung von Benutzerprofilen
+ * 
+ * Avatar-Upload wurde entfernt - nur noch Auswahl aus verfügbaren Avataren
+ * über die Avatar-API verfügbar.
+ */
 
+/**
+ * Benutzerprofil abrufen
+ */
 export async function getProfile(token: string) {
     try {
         const res = await api.get("/profile", {
@@ -29,6 +22,9 @@ export async function getProfile(token: string) {
     }
 }
 
+/**
+ * Benutzerprofil aktualisieren (ohne Avatar)
+ */
 export async function updateProfile(token: string, data: { username: string; email: string; oldPassword?: string; newPassword?: string; semester: number }) {
   try {
     const res = await api.put("/profile", data, {
@@ -41,6 +37,9 @@ export async function updateProfile(token: string, data: { username: string; ema
   }
 }
 
+/**
+ * Passwort ändern
+ */
 export async function updatePassword(token: string, oldPassword: string, newPassword: string) {
   try {
     const res = await api.put("/profile/password", { oldPassword, newPassword }, {

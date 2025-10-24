@@ -1,4 +1,6 @@
 import ChangePasswordModal from "../components/ChangePasswordModal";
+import AvatarSelector from "../components/AvatarSelector";
+import AvatarComponent from "../components/AvatarComponent";
 import {
   MDBBtn,
   MDBContainer,
@@ -8,7 +10,7 @@ import {
 } from 'mdb-react-ui-kit';
 import { useState, useEffect } from "react";
 import DevChatImage from "../assets/DevChatLogo.png";
-import { getProfile, updateProfile, uploadAvatar } from "../api/profileApi";
+import { getProfile, updateProfile } from "../api/profileApi";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 
@@ -17,11 +19,11 @@ export default function ProfilePage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showAvatarSelector, setShowAvatarSelector] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -32,6 +34,7 @@ export default function ProfilePage() {
         setUsername(res.username || "");
         setEmail(res.email || "");
         setAvatarUrl(res.avatarUrl);
+        console.log(res.avatarUrl);
       })
       .catch((err) => {
         console.error("Profil-Fehler:", err);
@@ -39,22 +42,21 @@ export default function ProfilePage() {
       });
   }, []);
   
-  const handleAvatarUpload = async () => {
-    if (!avatarFile) return;
-    setLoading(true);
+  /**
+   * Avatar-Auswahl Handler
+   */
+  const handleAvatarSelected = (newAvatarUrl: string) => {
+    setAvatarUrl(newAvatarUrl);
+    setSuccess("Avatar erfolgreich ausgewählt!");
     setError("");
-    try {
-      const token = localStorage.getItem("token");
-      const res = await uploadAvatar(token!, avatarFile);
-      setAvatarUrl(res.avatarUrl);
-      setSuccess("Avatar erfolgreich hochgeladen!");
-      setAvatarFile(null);
-    } catch (err) {
-      console.error("Avatar upload error:", err);
-      setError("Fehler beim Hochladen des Avatars.");
-    } finally {
-      setLoading(false);
-    }
+    console.log("Neuer Avatar ausgewählt:", newAvatarUrl);
+  };
+
+  /**
+   * Avatar-Selector öffnen
+   */
+  const openAvatarSelector = () => {
+    setShowAvatarSelector(true);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -90,17 +92,29 @@ export default function ProfilePage() {
                 <img src={DevChatImage} style={{width: '185px'}} alt="logo" />
                 <h4 className="mt-1 mb-5 pb-1">Profil bearbeiten</h4>
               </div>
-              {/* Avatar Anzeige und Upload */}
+              {/* Avatar Anzeige und Auswahl */}
               <div className="mb-4 text-center">
-                {avatarUrl ? (
-                  <img src={`http://localhost:4000${avatarUrl}`} alt="Avatar" style={{ width: 100, borderRadius: "50%", marginBottom: 8 }} />
-                ) : (
-                  <div style={{ width: 100, height: 100, borderRadius: "50%", background: "#eee", display: "inline-block", marginBottom: 8 }} />
-                )}
-                <input type="file" accept="image/*" onChange={e => setAvatarFile(e.target.files?.[0] || null)} />
-                <MDBBtn size="sm" className="ms-2" onClick={handleAvatarUpload} disabled={!avatarFile || loading}>
-                  {loading ? "Hochladen..." : "Avatar hochladen"}
+                <div className="mb-3">
+                  <AvatarComponent 
+                    src={avatarUrl}
+                    username={username || "User"}
+                    size="large"
+                    className="mx-auto mb-2"
+                  />
+                </div>
+                
+                <MDBBtn 
+                  color="primary" 
+                  size="sm" 
+                  onClick={openAvatarSelector}
+                  disabled={loading}
+                >
+                  Avatar ändern
                 </MDBBtn>
+                
+                <p className="text-muted small mt-2">
+                  Wähle aus unseren vorgefertigten Avataren
+                </p>
               </div>
               <form onSubmit={handleSave}>
                 <MDBInput
@@ -139,10 +153,20 @@ export default function ProfilePage() {
                 </MDBBtn>
             
               </form>
-              <MDBBtn outline color="primary" className="w-100 mb-2" onClick={() => setShowPasswordModal(true)}>
+                <MDBBtn outline color="primary" className="w-100 mb-2" onClick={() => setShowPasswordModal(true)}>
                   Passwort ändern
                 </MDBBtn>
+                
+                {/* Password Change Modal */}
                 <ChangePasswordModal open={showPasswordModal} setOpen={setShowPasswordModal} />
+                
+                {/* Avatar Selector Modal */}
+                <AvatarSelector
+                  isOpen={showAvatarSelector}
+                  onClose={() => setShowAvatarSelector(false)}
+                  onAvatarSelected={handleAvatarSelected}
+                  currentAvatarUrl={avatarUrl}
+                />
             </div>
           </MDBCol>
           <MDBCol col='6' className="mb-5">

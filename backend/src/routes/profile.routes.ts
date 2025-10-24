@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import { getProfile, updateProfile, updatePassword, uploadAvatar } from "../controllers/profile.controller";
+import { getProfile, updateProfile, updatePassword } from "../controllers/profile.controller";
 import { authMiddleware } from "../middleware/authMiddleware";
 
 const router = Router();
@@ -11,6 +11,5 @@ router.get("/", authMiddleware, getProfile);
 router.put("/", authMiddleware, updateProfile);
 router.put("/password", authMiddleware, updatePassword);
 // Avatar-Upload
-router.post("/avatar", authMiddleware, avatarUpload.single("avatar"), uploadAvatar);
 
 export default router;

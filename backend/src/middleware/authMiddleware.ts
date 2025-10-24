@@ -8,7 +8,8 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
   const token = authHeader.split(" ")[1];
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET!) as any;
-    (req as any).user = { id: payload.id };
+    // ✅ FIXED: Unterstütze beide Token-Formate (userId und id)
+    (req as any).user = { id: payload.userId || payload.id };
     next();
   } catch (err) {
     return res.status(403).json({ error: "Invalid token" });

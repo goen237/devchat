@@ -16,11 +16,13 @@ export class Message {
 	@Column({ nullable: true })
 	fileType?: string;
 
-	@ManyToOne(() => User, { eager: true })
+	@ManyToOne(() => User, (user) => user.sentMessages)
 	sender: User;
 
-	@ManyToOne(() => ChatRoom, { eager: true })
-	room: ChatRoom;
+	@ManyToOne(() => ChatRoom, (chatRoom) => chatRoom.messages, {
+		onDelete: "CASCADE"
+	})
+	chatRoom: ChatRoom;
 
 	@CreateDateColumn()
 	createdAt: Date;

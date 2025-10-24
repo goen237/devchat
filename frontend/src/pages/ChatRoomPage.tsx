@@ -1,382 +1,352 @@
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { getChatMessages, sendMessage, sendFileMessage } from "../api/chatApi";
-import { deleteMessage } from "../api/messageApi";
+import { useEffect, useState, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { getRoomMessages, deleteMessage } from "../api/messageApi";
+import { getChatRooms } from "../api/chatApi";
+import { useChatRoom } from "../hooks/useSocket";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import { MDBContainer, MDBInput, MDBBtn, MDBIcon } from 'mdb-react-ui-kit';
-import { io } from "socket.io-client";
+import MessageComponent from "../components/MessageComponent";
+import ChatInput from "../components/ChatInput";
+import { 
+  MDBContainer, 
+  MDBBtn, 
+  MDBIcon, 
+  MDBCard,
+  MDBCardBody,
+  MDBCardHeader,
+  MDBSpinner,
+  MDBBadge
+} from 'mdb-react-ui-kit';
 
-type Message = {
-  id: string;
-  sender?: {
-    username?: string;
-  };
-  content: string;
-  fileUrl?: string;
-  fileType?: string;
-  createdAt?: string;
-};
+import { getChatRoomDisplayName } from "../types";
+import type { Message, ChatRoom } from "../types";
 
 export default function ChatRoomPage() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // States
   const [messages, setMessages] = useState<Message[]>([]);
-  const [error, setError] = useState("");
-  const [newMsg, setNewMsg] = useState("");
-  const [chatTitle, setChatTitle] = useState("Chat");
-  // Get current user's username from localStorage (adjust key as needed)
-  const username = localStorage.getItem("username") || "";
+  const [chatRoom, setChatRoom] = useState<ChatRoom | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>("");
+  const [currentUserId, setCurrentUserId] = useState<string>("");
 
+  // Socket integration
+  const { 
+    messages: socketMessages, 
+    sendMessage: sendSocketMessage, 
+    isConnected 
+  } = useChatRoom(id || "");
+
+  // ✅ Socket-Messages zu State hinzufügen (Real-time!)
+  useEffect(() => {
+    socketMessages.forEach(socketMessage => {
+      const message: Message = {
+        id: socketMessage.id,
+        content: socketMessage.content,
+        fileUrl: socketMessage.fileUrl,
+        fileType: socketMessage.fileType,
+        createdAt: new Date(socketMessage.createdAt).toISOString(),
+        sender: {
+          id: socketMessage.sender.id,
+          username: socketMessage.sender.username,
+          avatarUrl: socketMessage.sender.avatarUrl
+        }
+      };
+
+      // Zu Messages hinzufügen (ohne Duplikate)
+      setMessages(prev => {
+        const exists = prev.some(m => m.id === message.id);
+        if (exists) return prev;
+        
+        return [...prev, message].sort((a, b) => 
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+      });
+    });
+  }, [socketMessages]);
+
+  // Get current user ID from token
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setCurrentUserId(payload.userId || payload.id || payload.sub || payload.user_id || "");
+        console.log('Current user ID from token:', payload.userId || payload.id || payload.sub || payload.user_id);
+        console.log('Full token payload:', payload);
+      } catch (error) {
+        console.error('Error parsing token:', error);
+        navigate('/login');
+      }
+    } else {
+      navigate('/login');
+    }
+  }, [navigate]);
+
+  // Load initial data
   useEffect(() => {
     if (!id) return;
-    const token = localStorage.getItem("token");
-    getChatMessages(token!, id)
-      .then(res => {
-        setMessages(res);
-        // Définir le titre du chat basé sur les participants
-        if (res.length > 0) {
-          const otherUsers = res
-            .map((msg: Message) => msg.sender?.username)
-            .filter((name: string | undefined) => name && name !== username)
-            .filter((name: string, index: number, arr: string[]) => arr.indexOf(name) === index); // unique
-          
-          if (otherUsers.length > 0) {
-            setChatTitle(otherUsers.length === 1 ? otherUsers[0] : `Groupe (${otherUsers.length + 1})`);
-          }
+
+    const loadInitialData = async () => {
+      try {
+        setLoading(true);
+        setError(""); // Clear previous errors
+        
+        // Load chat room info
+        const rooms = await getChatRooms();
+        const room = rooms.find(r => r.id === id);
+        if (!room) {
+          setError("ChatRoom nicht gefunden");
+          return;
         }
-      })
-      .catch(err => {
-        setError("Fehler beim Laden der Nachrichten.");
-        console.error("ChatRoom Fehler:", err);
-      });
+        setChatRoom(room);
 
-    // Socket.io für Echtzeit-Nachrichten
-    const socket = io("http://localhost:4000");
-    socket.emit("joinRoom", id);
-    
-    socket.on("receiveMessage", (newMessage: Message) => {
-      setMessages(prev => [...prev, newMessage]);
-    });
-
-    return () => {
-      socket.emit("leaveRoom", id);
-      socket.disconnect();
-    };
-  }, [id, username]);
-
-  const handleSend = async () => {
-    const token = localStorage.getItem("token");
-    if (!id || !token) return;
-    try {
-      if (file) {
-        await sendFileMessage(token, id, file);
-        setFile(null);
-        setNewMsg("");
-      } else if (newMsg.trim()) {
-        await sendMessage(token, id, newMsg);
-        setNewMsg("");
-      } else {
-        return;
+        // Load messages
+        const messages = await getRoomMessages(id);
+        setMessages(Array.isArray(messages) ? messages : []);
+        
+      } catch (error) {
+        console.error('Error loading chat data:', error);
+        setError(error instanceof Error ? error.message : 'Fehler beim Laden');
+      } finally {
+        setLoading(false);
       }
-      // Nachricht wird über Socket.io automatisch empfangen, keine manuelle Aktualisierung nötig
-    } catch (err) {
-      setError("Fehler beim Senden der Nachricht.");
-      console.error("Nachricht senden Fehler:", err);
+    };
+
+    loadInitialData();
+  }, [id]);
+
+  // 🔥 FIXED: Auto-scroll with proper dependencies to prevent loops
+  useEffect(() => {
+    if (messagesEndRef.current && messages.length > 0) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages.length]); // Only trigger on message count change
+
+  // Handle message deletion
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      await deleteMessage(messageId);
+      
+      // Remove from HTTP messages if it exists there
+      setMessages(prev => prev.filter(msg => msg.id !== messageId));
+      
+      // Note: Socket messages will be handled by real-time updates
+      console.log(`✅ Message ${messageId} deleted`);
+      
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      setError('Fehler beim Löschen der Nachricht');
     }
   };
 
-  const [file, setFile] = useState<File | null>(null);
-  const backendUrl = import.meta.env.VITE_BACKEND_UR || "http://localhost:4000";
+  // ✅ Nachricht senden - Nur über Socket (kein HTTP-Fallback mehr!)
+  const handleSendMessage = async (content: string) => {
+    if (!content.trim() || !id) return;
+    
+    const messageContent = content.trim();
+    
+    try {
+      if (!isConnected) {
+        setError('Nicht verbunden. Bitte warten...');
+        return;
+      }
 
-  // Fonction pour formater l'heure
-  const formatTime = (dateString: string | undefined) => {
-    if (!dateString) return "";
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('fr-FR', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-  };  return (
+      console.log(`📡 Sending via Socket: ${messageContent.substring(0, 50)}...`);
+      sendSocketMessage(messageContent);
+      
+      // Nachricht wird automatisch via 'messageReceived' Event empfangen!
+      
+    } catch (error) {
+      console.error('❌ Error sending message:', error);
+      setError('Fehler beim Senden der Nachricht');
+    }
+  };
+
+  // 🔥 FIXED: Handle file upload success without causing loops
+  const handleFileUploaded = (messageId: string) => {
+    // File uploaded successfully, refresh messages from server
+    if (!id) return;
+    
+    getRoomMessages(id)
+      .then(messages => {
+        if (Array.isArray(messages)) {
+          setMessages(messages);
+          console.log(`📎 File uploaded successfully, message ID: ${messageId}`);
+        }
+      })
+      .catch(error => {
+        console.error('Error reloading messages after file upload:', error);
+        setError('Datei hochgeladen, aber Nachrichten konnten nicht aktualisiert werden');
+      });
+  };
+
+  // Loading state - Professional MDB Spinner
+  if (loading) {
+    return (
+      <>
+        <Header />
+        <MDBContainer className="my-5 d-flex justify-content-center">
+          <MDBCard className="text-center shadow-3">
+            <MDBCardBody>
+              <MDBSpinner color="primary" className="mb-3">
+                <span className="visually-hidden">Loading...</span>
+              </MDBSpinner>
+              <h5 className="text-primary">Lade Chat...</h5>
+              <p className="text-muted">Nachrichten werden geladen</p>
+            </MDBCardBody>
+          </MDBCard>
+        </MDBContainer>
+        <Footer />
+      </>
+    );
+  }
+
+  // Error state - Professional Bootstrap Alert
+  if (error && !chatRoom) {
+    return (
+      <>
+        <Header />
+        <MDBContainer className="my-5">
+          <div className="alert alert-danger shadow-3" role="alert">
+            <h4 className="alert-heading">
+              <MDBIcon icon="exclamation-triangle" className="me-2" />
+              Fehler!
+            </h4>
+            <p className="mb-0">{error}</p>
+            <hr />
+            <div className="d-flex gap-2">
+              <MDBBtn color="danger" onClick={() => navigate('/dashboard')}>
+                <MDBIcon icon="arrow-left" className="me-1" />
+                Zurück zum Dashboard
+              </MDBBtn>
+              <MDBBtn color="secondary" outline onClick={() => window.location.reload()}>
+                <MDBIcon icon="refresh" className="me-1" />
+                Erneut versuchen
+              </MDBBtn>
+            </div>
+          </div>
+        </MDBContainer>
+        <Footer />
+      </>
+    );
+  }
+
+  return (
     <>
       <Header />
-      <MDBContainer className="my-5" style={{ maxHeight: "80vh", display: "flex", flexDirection: "column" }}>
-        <h4 className="mb-3">💬 {chatTitle}</h4>
-        {error && <div style={{ color: "#ED6A5E", marginBottom: "10px" }}>{error}</div>}
-        
-        {/* Chat Messages Container */}
-        <div style={{ 
-          flex: 1, 
-          overflowY: "auto", 
-          background: "#f8f9fa", 
-          borderRadius: "10px", 
-          padding: "15px", 
-          marginBottom: "15px",
-          maxHeight: "500px"
-        }}>
-          {messages.length === 0 ? (
-            <div style={{ textAlign: "center", color: "#6c757d", padding: "20px" }}>
-              Keine Nachrichten vorhanden. Starte die Unterhaltung! 🚀
-            </div>
-          ) : (
-            messages.map((msg: Message) => {
-              const isOwnMessage = msg.sender?.username === username;
-              const senderInitial = msg.sender?.username?.charAt(0).toUpperCase() || "?";
-              
-              return (
-                <div 
-                  key={msg.id} 
-                  style={{ 
-                    display: "flex", 
-                    justifyContent: isOwnMessage ? "flex-end" : "flex-start",
-                    alignItems: "flex-end",
-                    marginBottom: "12px",
-                    gap: "8px"
-                  }}
-                >
-                  {/* Avatar pour les messages reçus */}
-                  {!isOwnMessage && (
-                    <div style={{
-                      width: "32px",
-                      height: "32px",
-                      borderRadius: "50%",
-                      background: "#007bff",
-                      color: "white",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "0.8em",
-                      fontWeight: "bold",
-                      flexShrink: 0
-                    }}>
-                      {senderInitial}
-                    </div>
-                  )}
-                  <div style={{
-                    background: isOwnMessage ? "#007bff" : "white",
-                    color: isOwnMessage ? "white" : "black",
-                    padding: "12px 16px",
-                    borderRadius: "18px",
-                    maxWidth: "70%",
-                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                    position: "relative",
-                    marginLeft: isOwnMessage ? "0" : "8px",
-                    marginRight: isOwnMessage ? "8px" : "0"
-                  }}>
-                    {/* Nom de l'expéditeur pour les messages reçus */}
-                    {!isOwnMessage && (
-                      <div style={{ 
-                        fontSize: "0.75em", 
-                        fontWeight: "bold", 
-                        marginBottom: "4px", 
-                        opacity: 0.8,
-                        color: "#007bff"
-                      }}>
-                        {msg.sender?.username || "Inconnu"}
-                      </div>
-                    )}
-                    
-                    {/* Contenu du message */}
-                    <div style={{ marginBottom: "4px" }}>{msg.content}</div>
-                    
-                    {/* Heure d'envoi */}
-                    <div style={{ 
-                      fontSize: "0.7em", 
-                      opacity: 0.7, 
-                      textAlign: isOwnMessage ? "right" : "left",
-                      marginTop: "4px"
-                    }}>
-                      {formatTime(msg.createdAt)}
-                    </div>
-                    
-                    {/* Datei-Anhang */}
-                    {msg.fileUrl && (
-                      <div style={{ marginTop: "8px" }}>
-                        <a 
-                          href={`${backendUrl}${msg.fileUrl}`} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          style={{ 
-                            color: isOwnMessage ? "#cce7ff" : "#007bff",
-                            textDecoration: "none",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "5px"
-                          }}
-                        >
-                          <MDBIcon fas icon="bi bi-download" size="sm" />
-                          Datei herunterladen
-                        </a>
-                        {msg.fileType?.startsWith("image/") && (
-                          <div style={{ marginTop: "8px" }}>
-                            <img 
-                              src={`${backendUrl}${msg.fileUrl}`} 
-                              alt="Datei" 
-                              style={{ 
-                                maxWidth: "200px", 
-                                borderRadius: "8px",
-                                border: "1px solid rgba(255,255,255,0.3)"
-                              }} 
-                            />
-                          </div>
-                        )}
-                      </div>
-                    )}
-              
-                    {/* Löschen-Button für eigene Nachrichten - EINFACH UND FUNKTIONAL */}
-                    {isOwnMessage && (
-                      <button 
-                        style={{ 
-                          position: "absolute",
-                          top: "-6px",
-                          right: "-6px",
-                          background: "#dc3545",
-                          color: "white",
-                          border: "none",
-                          borderRadius: "50%",
-                          width: "20px",
-                          height: "20px",
-                          fontSize: "12px",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          zIndex: 10,
-                          opacity: 0.8
-                        }}
-                        onClick={async (e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          try {
-                            const token = localStorage.getItem("token");
-                            if (token) {
-                              await deleteMessage(token, msg.id);
-                              setMessages(prev => prev.filter(m => m.id !== msg.id));
-                            }
-                          } catch (error) {
-                            console.error("Fehler beim Löschen:", error);
-                            setError("Fehler beim Löschen der Nachricht");
-                          }
-                        }}
-                        title="Nachricht löschen"
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
-                  
-                  {/* Avatar pour les messages envoyés */}
-                  {isOwnMessage && (
-                    <div style={{
-                      width: "32px",
-                      height: "32px",
-                      borderRadius: "50%",
-                      background: "#28a745",
-                      color: "white",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "0.8em",
-                      fontWeight: "bold",
-                      flexShrink: 0
-                    }}>
-                      {username.charAt(0).toUpperCase() || "M"}
-                    </div>
+      <MDBContainer className="my-4">
+        <MDBCard className="shadow-4 border-0">
+          {/* 🎯 Smart Chat Header with Dynamic Title */}
+          <MDBCardHeader className="bg-primary text-white">
+            <div className="d-flex justify-content-between align-items-center">
+              <div>
+                <h4 className="mb-1 text-white">
+                  {chatRoom ? getChatRoomDisplayName(chatRoom, currentUserId) : "Chat"}
+                </h4>
+                <div className="d-flex align-items-center gap-3">
+                  <small className="text-white-50">
+                    <MDBIcon icon="bi bi-users" className="me-1" />
+                    {chatRoom?.participants?.length || 0} Teilnehmer
+                  </small>
+                  {isConnected ? (
+                    <MDBBadge color="success" pill>
+                      <MDBIcon icon="bi bi-wifi" className="me-1" />
+                      Real-time
+                    </MDBBadge>
+                  ) : (
+                    <MDBBadge color="info" pill>
+                      <MDBIcon icon="bi bi-cloud" className="me-1" />
+                      HTTP-Modus
+                    </MDBBadge>
                   )}
                 </div>
-              );
-            })
-          )}
-        </div>
-        <div className="d-flex mt-3 align-items-center gap-2" style={{ background: "#f8f9fa", padding: "15px", borderRadius: "10px", border: "1px solid #dee2e6" }}>
-          <MDBInput
-            value={newMsg}
-            onChange={e => setNewMsg(e.target.value)}
-            placeholder="Nachricht schreiben..."
-            style={{ flex: 1, border: "none", background: "white" }}
-            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-          />
-          
-          {/* Verstecktes File Input */}
-          <input 
-            type="file" 
-            id="fileInput"
-            onChange={e => setFile(e.target.files?.[0] || null)} 
-            style={{ display: 'none' }} 
-            accept="image/*,application/pdf,.doc,.docx,.txt"
-          />
-          
-          {/* File Upload Button mit Icon */}
-          <MDBBtn 
-            color="light" 
-            size="sm" 
-            className="border-0" 
-            onClick={() => document.getElementById('fileInput')?.click()}
-            title="Datei anhängen"
-            style={{ borderRadius: "50%", width: "40px", height: "40px" }}
-          >
-            <MDBIcon fas icon="bi bi-paperclip" />
-          </MDBBtn>
-          
-          <MDBBtn 
-            color="primary" 
-            size="sm" 
-            onClick={handleSend} 
-            disabled={(!newMsg.trim() && !file)}
-            title={file ? "Datei senden" : "Nachricht senden"}
-            style={{
-              borderRadius: "50%",
-              width: "40px",
-              height: "40px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 0
-            }}
-          >
-            <MDBIcon 
-              fas 
-              icon={file ? "bi-file-earmark-arrow-up" : "bi bi-send"} 
-              style={{ fontSize: "1.2rem" }} 
-            />
-          </MDBBtn>
-          
-          {/* Anzeige der ausgewählten Datei */}
-          {file && (
-            <div style={{ 
-              display: "flex", 
-              alignItems: "center", 
-              background: "#e3f2fd", 
-              padding: "8px 12px", 
-              borderRadius: "8px", 
-              marginLeft: "10px",
-              border: "1px solid #2196f3"
-            }}>
-              <MDBIcon fas icon="paperclip" size="sm" style={{ color: "#2196f3", marginRight: "8px" }} />
-              <span style={{ color: "#1976d2", fontSize: "0.9em", marginRight: "8px" }}>
-                {file.name}
-              </span>
-              <button
-                onClick={() => setFile(null)}
-                style={{
-                  background: "#f44336",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "50%",
-                  width: "20px",
-                  height: "20px",
-                  fontSize: "12px",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center"
-                }}
-                title="Datei entfernen"
+              </div>
+              <MDBBtn 
+                color="light" 
+                size="sm"
+                className="text-primary"
+                onClick={() => navigate('/dashboard')}
               >
-                ×
-              </button>
+                <MDBIcon icon="arrow-left" className="me-1" />
+                Zurück
+              </MDBBtn>
             </div>
-          )}
-        </div>
+          </MDBCardHeader>
+
+          <MDBCardBody className="p-0">
+            {/* Error Display (non-blocking) */}
+            {error && chatRoom && (
+              <div className="m-3">
+                <div className="alert alert-warning alert-dismissible" role="alert">
+                  <MDBIcon icon="bi bi-exclamation-triangle" className="me-2" />
+                  {error}
+                  <button 
+                    type="button" 
+                    className="btn-close" 
+                    onClick={() => setError("")}
+                    aria-label="Close"
+                  ></button>
+                </div>
+              </div>
+            )}
+
+            {/* 🔥 IMPROVED: Messages Container with MDB Styling */}
+            <div 
+              className="position-relative overflow-auto"
+              style={{ 
+                backgroundColor: "#f8f9fa",
+                minHeight: "500px",
+                maxHeight: "60vh",
+                borderBottom: "1px solid #dee2e6"
+              }}
+            >
+              <div className="p-3">
+                {messages.length === 0 ? (
+                  <div className="text-center text-muted py-5">
+                    <MDBIcon icon="bi bi-chat" size="3x" className="mb-3 text-primary opacity-50" />
+                    <h5 className="text-muted">Noch keine Nachrichten</h5>
+                    <p className="text-muted">Schreibe die erste Nachricht!</p>
+                  </div>
+                ) : (
+                  <div>
+                    {messages.map((message) => (
+                      <MessageComponent
+                        key={message.id}
+                        message={message}
+                        isCurrentUser={message.sender.id === currentUserId}
+                        onDelete={handleDeleteMessage}
+                        showAvatar={true}
+                      />
+                    ))}
+                    {/* Auto-scroll anchor */}
+                    <div ref={messagesEndRef} />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ✅ Chat Input - Nur aktiv wenn Socket verbunden */}
+            <div className="p-3 bg-white border-top">
+              <ChatInput
+                onSendMessage={handleSendMessage}
+                onFileUploaded={handleFileUploaded}
+                disabled={!isConnected}
+                chatRoomId={id || ""}
+                placeholder={isConnected ? "Nachricht eingeben..." : "Warte auf Verbindung..."}
+              />
+              {!isConnected && (
+                <small className="text-warning d-block mt-2">
+                  <MDBIcon icon="exclamation-triangle" className="me-1" />
+                  Verbindung wird hergestellt...
+                </small>
+              )}
+            </div>
+          </MDBCardBody>
+        </MDBCard>
       </MDBContainer>
       <Footer />
     </>

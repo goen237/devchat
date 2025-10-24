@@ -1,14 +1,17 @@
+// routes/avatar.routes.ts
 import { Router } from 'express';
-import { AvatarController } from '../controllers/avatar.controller';
+import { getAvailableAvatars, selectAvatar, serveAvatar } from '../controllers/avatar.controller';
 import { authMiddleware } from '../middleware/authMiddleware';
 
 const router = Router();
-const avatarController = new AvatarController();
 
-// Get all available avatars
-router.get('/list', avatarController.getAvailableAvatars);
+// Alle verfügbaren Avatare abrufen
+router.get('/list', getAvailableAvatars);
 
-// Update user's selected avatar
-router.post('/select', authMiddleware, avatarController.selectAvatar);
+// Avatar auswählen (authentifiziert)
+router.post('/select', authMiddleware, selectAvatar);
+
+// Avatar-Dateien bereitstellen
+router.get('/:type/:filename', serveAvatar);
 
 export default router;

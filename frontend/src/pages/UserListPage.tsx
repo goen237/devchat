@@ -16,10 +16,9 @@ export default function UserListPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
     const currentUserId = localStorage.getItem("userId");
     
-    getAllUsers(token!)
+    getAllUsers()
       .then(res => {
         // Exclure l'utilisateur actuel de la liste
         const filteredUsers = res.filter((user: User) => user.id !== currentUserId);
@@ -34,9 +33,8 @@ export default function UserListPage() {
     const navigate = useNavigate();
 
   const handleStartChat = async (userId: string) => {
-    const token = localStorage.getItem("token");
     try {
-      const chatRoom = await startPrivateChat(token!, userId);
+      const chatRoom = await startPrivateChat(userId);
         // Weiterleitung zum ChatRoom mit React Router
         navigate(`/chatroom/${chatRoom.id}`);
     } catch (err) {

@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (Optional - auskommentieren wenn Supabase verwendet wird)
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: devchat-postgres
+  #   environment:
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: postgres
+  #     POSTGRES_DB: devchat
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - devchat-network
+
+  # Redis (Optional - für Session-Management oder Caching)
+  redis:
+    image: redis:7-alpine
+    container_name: devchat-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - devchat-network
+
+  # Backend Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.backend
+    container_name: devchat-backend
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      
+      # Supabase Connection (WICHTIG: Setze deine Supabase-Daten)
+      DB_HOST: ${SUPABASE_HOST:-db.supabase.co}
+      DB_PORT: ${SUPABASE_PORT:-5432}
+      DB_USERNAME: ${SUPABASE_USER:-postgres}
+      DB_PASSWORD: ${SUPABASE_PASSWORD}
+      DB_NAME: ${SUPABASE_DB:-postgres}
+      
+      # JWT Secret
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-this}
+      
+      # Redis (optional)
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      
+      # CORS Origin
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/avatars:/app/avatars
+    depends_on:
+      redis:
+        condition: service_healthy
+      # postgres:  # Auskommentieren wenn lokale DB verwendet wird
+      #   condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - devchat-network
+    restart: unless-stopped
+
+  # Frontend Service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.frontend
+    container_name: devchat-frontend
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:5000}
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - devchat-network
+    restart: unless-stopped
+
+networks:
+  devchat-network:
+    driver: bridge
+
+volumes:
+  # postgres_data:  # Auskommentieren wenn lokale DB verwendet wird
+  redis_data:

@@ -16,10 +16,9 @@ export default function CreateGroupChatModal({ open, setOpen }: { open: boolean;
 
   useEffect(() => {
     if (open) {
-      const token = localStorage.getItem("token");
       const currentUserId = localStorage.getItem("userId"); // Assumons que l'ID utilisateur est stocké
       
-      getAllUsers(token!)
+      getAllUsers()
         .then(res => {
           // Exclure l'utilisateur actuel de la liste des participants
           const filteredUsers = res.filter((user: User) => user.id !== currentUserId);
@@ -34,9 +33,8 @@ export default function CreateGroupChatModal({ open, setOpen }: { open: boolean;
       setError("Bitte Namen und mindestens einen Teilnehmer wählen.");
       return;
     }
-    const token = localStorage.getItem("token");
     try {
-      const chatRoom = await createGroupChat(token!, name, selected);
+      const chatRoom = await createGroupChat(name, selected);
       window.location.href = `/chatroom/${chatRoom.id}`;
     } catch {
       setError("Fehler beim Erstellen des Gruppenchats.");

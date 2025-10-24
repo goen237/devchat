@@ -31,7 +31,7 @@ export const updateUserProfile = async (
 export const getUserProfile = async (userId: string) => {
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneByOrFail({ id: userId });
-    return { username: user.username, email: user.email, semester: user.semester };
+    return { username: user.username, email: user.email, semester: user.semester, avatarUrl: user.avatarUrl };
 };
 
 export const updateUserPassword = async (userId: string, { oldPassword, newPassword }: { oldPassword: string; newPassword: string }) => {
@@ -45,10 +45,3 @@ export const updateUserPassword = async (userId: string, { oldPassword, newPassw
     return { message: "Passwort erfolgreich geändert." };
 };
 
-export const uploadUserAvatar = async (userId: string, avatarPath: string) => {
-  const userRepo = AppDataSource.getRepository(User);
-  const user = await userRepo.findOneByOrFail({ id: userId });
-  user.avatarUrl = avatarPath;
-  await userRepo.save(user);
-  return { avatarUrl: user.avatarUrl };
-};

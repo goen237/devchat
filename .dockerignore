@@ -1,0 +1,49 @@
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+docs/
+
+# IDE & Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment files (werden separat gemountet)
+.env
+.env.*
+
+# Docker files
+Dockerfile*
+docker-compose*.yaml
+docker-compose*.yml
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+ci-cd/
+
+# Development scripts
+scripts/
+deploy.sh
+deploy.ps1
+
+# Tests (optional)
+tests/
+**/*.test.ts
+**/*.spec.ts
+coverage/
+
+# Logs
+logs/
+*.log

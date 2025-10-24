@@ -2,7 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToMany, Ma
 import { Message } from "./Message";
 import { User } from "./User";
 
-@Entity()
+@Entity("chat_room") // Explizite Tabellenbenennung für Konsistenz
 export class ChatRoom {
 	@PrimaryGeneratedColumn("uuid")
 	id: string;
@@ -13,17 +13,26 @@ export class ChatRoom {
 	@Column({ default: "private" })
 	type: "private" | "group";
 
-	@ManyToMany(() => User)
-	@JoinTable()
-	creator: User[];
-
 	@CreateDateColumn()
 	createdAt: Date;
 
-	@OneToMany(() => Message, (message) => message.room)
+	@OneToMany(() => Message, (message) => message.chatRoom, {
+		cascade: true,
+		onDelete: "CASCADE"
+	})
 	messages: Message[];
 
 	@ManyToMany(() => User, user => user.chatRooms)
-	@JoinTable()
+	@JoinTable({
+		name: "chat_room_participants_user", // Expliziter Junction-Tabellenname
+		joinColumn: {
+			name: "chatRoomId",
+			referencedColumnName: "id"
+		},
+		inverseJoinColumn: {
+			name: "userId",
+			referencedColumnName: "id"
+		}
+	})
 	participants: User[];
 }

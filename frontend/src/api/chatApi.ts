@@ -1,106 +1,126 @@
 import { api } from "./client";
+import type { ChatRoom } from "../types/chatroom.types";
+import type { User } from "../types/user.types";
 
+/**
+ * ChatRoom API - ChatRoom-Verwaltung
+ * 
+ * Verantwortlichkeiten:
+ * - ChatRooms listen/erstellen/löschen
+ * - Private/Gruppen-Chats starten
+ * - User-Management für Chat-Partner-Auswahl
+ * 
+ * NICHT für: Nachrichten senden/empfangen/löschen (siehe messageApi.ts)
+ * 
+ * Types sind in separate Dateien ausgelagert:
+ * - ChatRoom types: ../types/chatroom.types.ts
+ * - User types: ../types/user.types.ts
+ */
 
-export async function deleteChatRoom(token: string, chatRoomId: string) {
+// ===== RE-EXPORTS für Backward Compatibility =====
+export type { ChatRoom } from "../types/chatroom.types";
+export type { User } from "../types/user.types";
+
+// ===== HELPER FUNCTIONS =====
+const getAuthHeader = () => {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('Nicht authentifiziert');
+  return { Authorization: `Bearer ${token}` };
+};
+
+const handleApiError = (error: unknown, defaultMessage: string): never => {
+  console.error(defaultMessage, error);
+  
+  if (error && typeof error === 'object' && 'response' in error) {
+    const apiError = error as { response?: { data?: { message?: string } } };
+    if (apiError.response?.data?.message) {
+      throw new Error(apiError.response.data.message);
+    }
+  }
+  
+  throw new Error(defaultMessage);
+};
+
+/**
+ * ChatRoom löschen
+ */
+export async function deleteChatRoom(chatRoomId: string): Promise<void> {
   try {
     const res = await api.delete(`/chatrooms/${chatRoomId}`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: getAuthHeader()
     });
-    return res.data;
+    
+    if (!res.data.success) {
+      throw new Error(res.data.message || 'Fehler beim Löschen des Chatrooms');
+    }
   } catch (error) {
-    console.error("Fehler beim Löschen des Chatrooms:", error);
-    throw new Error("Fehler beim Löschen des Chatrooms");
+    handleApiError(error, "Fehler beim Löschen des Chatrooms");
   }
 }
 
-export async function getChatRooms(token: string) {
+/**
+ * Alle ChatRooms des Users laden
+ */
+export async function getChatRooms(): Promise<ChatRoom[]> {
   try {
     const res = await api.get("/chatrooms", {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: getAuthHeader()
     });
+    
     console.log("Chatrooms geladen:", res.data);
-    return res.data;
+    return res.data || [];
   } catch (error) {
-    console.error("Fehler beim Laden der Chatrooms:", error);
-    throw new Error("Fehler beim Laden der Chatrooms");
+    handleApiError(error, "Fehler beim Laden der Chatrooms");
+    return [];
   }
 }
 
-// Weitere API-Methoden für Chatrooms folgen ...
-
-export async function sendFileMessage(token: string, chatRoomId: string, file: File) {
-  const formData = new FormData();
-  formData.append("file", file);
-  try {
-    const res = await api.post(`/chatrooms/${chatRoomId}/messages/file`, formData, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "multipart/form-data"
-      }
-    });
-    return res.data;
-  } catch (error) {
-    console.error("Fehler beim Senden der Datei:", error);
-    throw new Error("Fehler beim Senden der Datei");
-  }
-}
-
-export async function createGroupChat(token: string, name: string, participantIds: string[]) {
+/**
+ * Gruppen-Chat erstellen
+ */
+export async function createGroupChat(name: string, participantIds: string[]): Promise<ChatRoom> {
   try {
     const res = await api.post("/chatrooms/group", { name, participantIds }, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: getAuthHeader()
     });
-    return res.data;
+    
+    return res.data || [];
   } catch (error) {
-    console.error("Fehler beim Erstellen des Gruppenchats:", error);
-    throw new Error("Fehler beim Erstellen des Gruppenchats");
+    handleApiError(error, "Fehler beim Erstellen des Gruppenchats");
+    return { id: '', name: '', type: 'group', createdAt: '', participants: [] };
   }
 }
 
-export async function getChatMessages(token: string, chatRoomId: string) {
-  try {
-    const res = await api.get(`/chatrooms/${chatRoomId}/messages`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    return res.data;
-  } catch (error) {
-    console.error("Fehler beim Laden der Nachrichten:", error);
-    throw new Error("Fehler beim Laden der Nachrichten");
-  }
-}
-
-export async function sendMessage(token: string, chatRoomId: string, content: string) {
-  try {
-    const res = await api.post(`/chatrooms/${chatRoomId}/messages`, { content }, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    return res.data;
-  } catch (error) {
-    console.error("Fehler beim Senden der Nachricht:", error);
-    throw new Error("Fehler beim Senden der Nachricht");
-  }
-}
-
-export async function getAllUsers(token: string) {
-  try {
-    const res = await api.get("/users", {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    return res.data;
-  } catch (error) {
-    console.error("Fehler beim Laden der Nutzer:", error);
-    throw new Error("Fehler beim Laden der Nutzer");
-  }
-}
-
-export async function startPrivateChat(token: string, userId: string) {
+/**
+ * Privaten Chat starten
+ */
+export async function startPrivateChat(userId: string): Promise<ChatRoom> {
   try {
     const res = await api.post("/chatrooms/private", { userId }, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: getAuthHeader()
     });
-    return res.data;
+    
+    return res.data || [];
   } catch (error) {
-    console.error("Fehler beim Starten des privaten Chats:", error);
-    throw new Error("Fehler beim Starten des privaten Chats");
+    handleApiError(error, "Fehler beim Starten des privaten Chats");
+    return { id: '', name: '', type: 'private', createdAt: '', participants: [] };
+  }
+}
+
+// ===== USER APIs (für Chat-Funktionalität) =====
+
+/**
+ * Alle User laden (für Chat-Partner-Auswahl)
+ */
+export async function getAllUsers(): Promise<User[]> {
+  try {
+    const res = await api.get("/users", {
+      headers: getAuthHeader()
+    });
+    
+    return res.data || [];
+  } catch (error) {
+    handleApiError(error, "Fehler beim Laden der Nutzer");
+    return [];
   }
 }

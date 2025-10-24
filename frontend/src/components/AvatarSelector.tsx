@@ -36,9 +36,10 @@ const AvatarSelector: React.FC<AvatarSelectorProps> = ({
     if (isOpen) {
       loadAvatars();
       if (currentAvatarUrl) {
-        // Extract avatar name from URL
-        const avatarName = currentAvatarUrl.split('/').pop() || '';
-        setSelectedAvatar(avatarName);
+        // Extract avatar ID from URL (letzter Teil der URL)
+        const urlParts = currentAvatarUrl.split('/');
+        const avatarId = urlParts[urlParts.length - 1] || '';
+        setSelectedAvatar(avatarId);
       }
     }
   }, [isOpen, currentAvatarUrl]);
@@ -61,9 +62,9 @@ const AvatarSelector: React.FC<AvatarSelectorProps> = ({
     setSaving(true);
     try {
       await avatarApi.selectAvatar(selectedAvatar);
-      const selectedAvatarData = avatars.find(avatar => avatar.name === selectedAvatar);
+      const selectedAvatarData = avatars.find(avatar => avatar.id === selectedAvatar);
       if (selectedAvatarData) {
-        onAvatarSelected(selectedAvatarData.url);
+        onAvatarSelected(avatarApi.getAvatarUrl(selectedAvatarData));
       }
       onClose();
     } catch (error) {
@@ -95,14 +96,14 @@ const AvatarSelector: React.FC<AvatarSelectorProps> = ({
             ) : (
               <MDBRow>
                 {avatars.map((avatar) => (
-                  <MDBCol key={avatar.name} md="4" className="mb-3">
+                  <MDBCol key={avatar.id} md="4" className="mb-3">
                     <div
                       className={`avatar-option ${
-                        selectedAvatar === avatar.name ? 'selected' : ''
+                        selectedAvatar === avatar.id ? 'selected' : ''
                       }`}
-                      onClick={() => setSelectedAvatar(avatar.name)}
+                      onClick={() => setSelectedAvatar(avatar.id)}
                       style={{
-                        border: selectedAvatar === avatar.name ? '3px solid #007bff' : '2px solid #dee2e6',
+                        border: selectedAvatar === avatar.id ? '3px solid #007bff' : '2px solid #dee2e6',
                         borderRadius: '8px',
                         padding: '10px',
                         textAlign: 'center',
@@ -111,16 +112,20 @@ const AvatarSelector: React.FC<AvatarSelectorProps> = ({
                       }}
                     >
                       <img
-                        src={`http://localhost:3000${avatar.url}`}
-                        alt={avatar.displayName}
+                        src={avatarApi.getAvatarUrl(avatar)}
+                        alt={avatar.name}
                         style={{
                           width: '80px',
                           height: '80px',
                           borderRadius: '50%',
                           marginBottom: '8px'
                         }}
+                        onError={(e) => {
+                          console.error('Fehler beim Laden des Avatars:', avatar.id);
+                          e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiByeD0iNDAiIGZpbGw9IiNFNUU3RUIiLz4KPHN2ZyB4PSIyNCIgeT0iMjQiIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjNkI3Mjc5Ij4KPHA+VXNlcjwvcD4KPC9zdmc+Cjwvc3ZnPgo=';
+                        }}
                       />
-                      <div className="small">{avatar.displayName}</div>
+                      <div className="small">{avatar.name}</div>
                     </div>
                   </MDBCol>
                 ))}

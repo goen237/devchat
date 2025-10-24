@@ -13,9 +13,18 @@ app.use(express.json());
 
 
 app.use(cors({
-  origin: "http://localhost:5173", 
+  origin: process.env.CORS_ORIGIN || "http://localhost:5173", 
   credentials: true
 }));
+
+// Health check endpoint for Docker
+app.get("/health", (req, res) => {
+  res.status(200).json({ 
+    status: "ok", 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
 
 // Static file serving for uploads
 import path from "path";

@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getUserProfile, updateUserPassword, updateUserProfile, uploadUserAvatar } from "../services/profile.service";
+import { getUserProfile, updateUserPassword, updateUserProfile } from "../services/profile.service";
 
 export const getProfile = async (req: Request, res: Response) => {
   const userId = (req as any).user?.id;
@@ -42,14 +42,3 @@ export const updatePassword = async (req: Request, res: Response) => {
   }
 };
 
-export const uploadAvatar = async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).user.id;
-    const file = (req as any).file;
-    if (!file) return res.status(400).json({ error: "Keine Datei" });
-    const result = await uploadUserAvatar(userId, `/avatars/${file.filename}`);
-    res.json(result);
-  } catch (err: any) {
-    res.status(400).json({ error: err.message });
-  }
-};
