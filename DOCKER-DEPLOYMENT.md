@@ -43,8 +43,8 @@ docker-compose ps
 
 ### 4. Zugriff auf die Anwendung
 
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:5000
+- **Frontend**: http://localhost:5173
+- **Backend API**: http://localhost:4000
 - **Redis**: localhost:6379
 
 ---
@@ -85,12 +85,12 @@ DB_NAME=devchat
 ## 🛠️ Services
 
 ### Backend
-- **Port**: 5000
+- **Port**: 4000
 - **Tech**: Node.js + TypeScript + Express
 - **Features**: REST API, Socket.io, JWT Auth
 
 ### Frontend
-- **Port**: 3000 (intern 80)
+- **Port**: 5173 (intern 80)
 - **Tech**: React + Vite + TypeScript
 - **Server**: Nginx
 
@@ -215,12 +215,12 @@ docker-compose up -d postgres
 **Lösung**: Prüfe CORS Origin
 ```env
 # .env
-CORS_ORIGIN=http://localhost:3000
+CORS_ORIGIN=http://localhost:5173
 ```
 
 **Lösung 2**: Prüfe Backend Health
 ```bash
-curl http://localhost:5000/health
+curl http://localhost:4000/health
 ```
 
 ### Problem: Port bereits belegt
@@ -228,7 +228,7 @@ curl http://localhost:5000/health
 **Lösung**: Ändere Ports in `docker-compose.yaml`
 ```yaml
 ports:
-  - "8080:80"  # Statt 3000:80
+  - "8080:80"  # Statt 5173:80
 ```
 
 ### Problem: Redis Connection Fehler
@@ -261,10 +261,10 @@ Alle Services haben Health Checks konfiguriert:
 docker-compose ps
 
 # Backend Health Endpoint
-curl http://localhost:5000/health
+curl http://localhost:4000/health
 
 # Frontend Health (über nginx)
-curl http://localhost:3000/
+curl http://localhost:5173/
 
 # Redis Health
 docker-compose exec redis redis-cli ping

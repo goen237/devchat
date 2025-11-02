@@ -1,6 +1,6 @@
 import passport from "passport";
 import { Strategy as GoogleStrategy, Profile } from "passport-google-oauth20";
-import { AppDataSource } from "../config/data-source";
+import { getDataSource } from "../config/data-source";
 import { User } from "../entities/User";
 
 passport.use(
@@ -16,7 +16,7 @@ passport.use(
       profile: Profile,
       done: (error: any, user?: any) => void
     ) => {
-      const userRepo = AppDataSource.getRepository(User);
+      const userRepo = getDataSource().getRepository(User);
       let user = await userRepo.findOneBy({ googleId: profile.id });
       if (!user) {
         user = userRepo.create({
@@ -37,7 +37,7 @@ passport.serializeUser((user: any, done: (err: any, id?: any) => void) => {
 });
 
 passport.deserializeUser(async (id: string, done: (err: any, user?: any) => void) => {
-  const userRepo = AppDataSource.getRepository(User);
+  const userRepo = getDataSource().getRepository(User);
   const user = await userRepo.findOneBy({ id });
   done(null, user);
 });

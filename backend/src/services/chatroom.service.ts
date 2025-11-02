@@ -1,70 +1,90 @@
-import { AppDataSource } from "../config/data-source";
+import { getDataSource } from "../config/data-source";
 import { ChatRoom } from "../entities/ChatRoom";
 import { User } from "../entities/User";
 import { Repository, In } from "typeorm";
+import { cacheWrapper, deleteCache, deleteCachePattern } from "../utils/cache";
 
+/**
+ * Lädt alle ChatRooms eines Users
+ * MIT CACHING: Erste Query langsam, weitere Queries < 1ms
+ */
 export async function getUserChatRoomsService(userId: string) {
   try {
     console.log(`🔍 Loading chatrooms for user: ${userId}`);
-      const chatRoomRepo = AppDataSource.getRepository(ChatRoom);
-    // 🔥 FIX: Erste Query um ChatRoom IDs zu finden wo User Mitglied ist
-    const chatRoomIds = await chatRoomRepo
-      .createQueryBuilder("chatroom")
-      .select("chatroom.id")
-      .leftJoin("chatroom.participants", "participant")
-      .where("participant.id = :userId", { userId })
-      .getMany();
+    
+    // 🚀 CACHING: Versuche aus Cache zu laden
+    // TTL: 60 Sekunden (ChatRoom-Liste ändert sich relativ häufig)
+    return await cacheWrapper(
+      `user:${userId}:chatrooms`, // Cache-Key
+      async () => {
+        // Fallback: Lade aus Datenbank
+        const chatRoomRepo = getDataSource().getRepository(ChatRoom);
+        
+        // 🔥 FIX: Erste Query um ChatRoom IDs zu finden wo User Mitglied ist
+        const chatRoomIds = await chatRoomRepo
+          .createQueryBuilder("chatroom")
+          .select("chatroom.id")
+          .leftJoin("chatroom.participants", "participant")
+          .where("participant.id = :userId", { userId })
+          .getMany();
 
-    if (chatRoomIds.length === 0) {
-      console.log('📭 No chatrooms found for user');
-      return [];
-    }
+        if (chatRoomIds.length === 0) {
+          console.log('📭 No chatrooms found for user');
+          return [];
+        }
 
-    // 🔥 FIX: Jetzt ALLE Participants für diese ChatRooms laden
-    const chatRooms = await chatRoomRepo.find({
-      where: {
-        id: In(chatRoomIds.map(room => room.id))
+        // 🔥 FIX: Jetzt ALLE Participants für diese ChatRooms laden
+        const chatRooms = await chatRoomRepo.find({
+          where: {
+            id: In(chatRoomIds.map(room => room.id))
+          },
+          relations: ['participants'], // ✅ Alle participants laden!
+          order: {
+            createdAt: 'DESC'
+          }
+        });
+
+        console.log(`📊 Found ${chatRooms.length} chatrooms with full participants`);
+
+        return chatRooms.map(room => {
+          console.log(`🏠 Processing room: ${room.id}, type: ${room.type}`);
+          console.log(`👥 Participants count: ${room.participants.length}`);
+          
+          const allParticipants = room.participants.map(user => {
+            console.log(`  - User: ${user.username} (${user.id})`);
+            return {
+              id: user.id,
+              username: user.username,
+              email: user.email,
+              avatarUrl: user.avatarUrl || null,
+              isOnline: user.isOnline || false
+            };
+          });
+
+          return {
+            id: room.id,
+            name: room.name,
+            type: room.type,
+            createdAt: room.createdAt.toISOString(),
+            participants: allParticipants // ✅ ALLE participants, nicht gefiltert!
+          };
+        });
       },
-      relations: ['participants'], // ✅ Alle participants laden!
-      order: {
-        createdAt: 'DESC'
-      }
-    });
-
-    console.log(`📊 Found ${chatRooms.length} chatrooms with full participants`);
-
-    return chatRooms.map(room => {
-      console.log(`🏠 Processing room: ${room.id}, type: ${room.type}`);
-      console.log(`👥 Participants count: ${room.participants.length}`);
-      
-      const allParticipants = room.participants.map(user => {
-        console.log(`  - User: ${user.username} (${user.id})`);
-        return {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          avatarUrl: user.avatarUrl || null,
-          isOnline: user.isOnline || false
-        };
-      });
-
-      return {
-        id: room.id,
-        name: room.name,
-        type: room.type,
-        createdAt: room.createdAt.toISOString(),
-        participants: allParticipants // ✅ ALLE participants, nicht gefiltert!
-      };
-    });
+      60 // 60 Sekunden Cache (häufig ändernde Liste)
+    );
   } catch (error) {
     console.error('❌ Error in getUserChatRoomsService:', error);
     throw new Error('Fehler beim Laden der ChatRooms');
   }
 }
 
+/**
+ * Erstellt einen neuen Gruppenchat
+ * Cache-Invalidierung: Löscht ChatRoom-Listen aller Teilnehmer
+ */
 export async function createGroupChatService(userId: string, name: string, participantIds: string[]) {
-  const userRepo = AppDataSource.getRepository(User);
-  const chatRoomRepo = AppDataSource.getRepository(ChatRoom);
+  const userRepo = getDataSource().getRepository(User);
+  const chatRoomRepo = getDataSource().getRepository(ChatRoom);
   
   const creator = await userRepo.findOneBy({ id: userId });
   const participants = await userRepo.findByIds(participantIds);
@@ -86,6 +106,11 @@ export async function createGroupChatService(userId: string, name: string, parti
   
   console.log(`✅ Neuer Gruppenchat erstellt: ${name} mit ${allParticipants.length} Teilnehmern`);
   
+  // 🗑️ CACHE INVALIDIERUNG: Lösche ChatRoom-Listen aller Teilnehmer
+  for (const participant of allParticipants) {
+    await deleteCache(`user:${participant.id}:chatrooms`);
+  }
+  
   // 🔥 FIXED: Konsistente Response-Struktur
   return {
     id: chatRoom.id,
@@ -102,16 +127,37 @@ export async function createGroupChatService(userId: string, name: string, parti
   };
 }
 
+/**
+ * Löscht einen ChatRoom
+ * Cache-Invalidierung: Löscht alle ChatRoom-bezogenen Caches
+ */
 export async function deleteChatRoomService(userId: string, chatRoomId: string) {
-  const chatRoomRepo = AppDataSource.getRepository(ChatRoom);
-  const chatRoom = await chatRoomRepo.findOneBy({ id: chatRoomId });
+  const chatRoomRepo = getDataSource().getRepository(ChatRoom);
+  const chatRoom = await chatRoomRepo.findOne({ 
+    where: { id: chatRoomId },
+    relations: ['participants']
+  });
+  
   if (!chatRoom) throw new Error("ChatRoom nicht gefunden");
+  
   // Optional: Prüfe, ob userId berechtigt ist (z.B. Teilnehmer oder Creator)
+  
+  // 🗑️ CACHE INVALIDIERUNG: Lösche ChatRoom-Listen aller Teilnehmer
+  if (chatRoom.participants) {
+    for (const participant of chatRoom.participants) {
+      await deleteCache(`user:${participant.id}:chatrooms`);
+    }
+  }
+  
   await chatRoomRepo.remove(chatRoom);
 }
 
+/**
+ * Startet einen privaten Chat zwischen zwei Usern
+ * Cache-Invalidierung: Löscht ChatRoom-Listen beider User bei Neuanlage
+ */
 export async function startPrivateChatService(userId: string, otherUserId: string) {
-  const userRepo = AppDataSource.getRepository(User);
+  const userRepo = getDataSource().getRepository(User);
   const thisUser = await userRepo.findOneBy({ id: userId });
   const otherUser = await userRepo.findOneBy({ id: otherUserId });
   
@@ -119,7 +165,7 @@ export async function startPrivateChatService(userId: string, otherUserId: strin
     throw new Error("User nicht gefunden");
   }
 
-  const chatRoomRepo = AppDataSource.getRepository(ChatRoom);
+  const chatRoomRepo = getDataSource().getRepository(ChatRoom);
   
   // 🔥 FIXED: Vereinfachte Suche - lass TypeORM die Junction-Tabelle automatisch verwalten
   const existingChatRooms = await chatRoomRepo.find({
@@ -143,6 +189,10 @@ export async function startPrivateChatService(userId: string, otherUserId: strin
     await chatRoomRepo.save(chatRoom);
     
     console.log(`✅ Neuer privater Chat erstellt zwischen ${thisUser.username} und ${otherUser.username}`);
+    
+    // 🗑️ CACHE INVALIDIERUNG: Lösche ChatRoom-Listen beider User
+    await deleteCache(`user:${userId}:chatrooms`);
+    await deleteCache(`user:${otherUserId}:chatrooms`);
   } else {
     console.log(`📋 Bestehender privater Chat gefunden zwischen ${thisUser.username} und ${otherUser.username}`);
   }

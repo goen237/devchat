@@ -1,7 +1,7 @@
 import { Server } from 'socket.io';
 import { Server as HttpServer } from 'http';
 import { verifyToken } from '../utils/jwt';
-import { AppDataSource } from '../config/data-source';
+import { getDataSource } from '../config/data-source';
 import { User } from '../entities/User';
 import { AuthenticatedSocket } from './types';
 import { setupUserSocket } from './userSocket';
@@ -65,7 +65,7 @@ export function initializeSocket(httpServer: HttpServer) {
       }
 
       // User aus DB laden
-      const userRepo = AppDataSource.getRepository(User);
+      const userRepo = getDataSource().getRepository(User);
       const user = await userRepo.findOne({ where: { id: userId } });
       
       if (!user) {

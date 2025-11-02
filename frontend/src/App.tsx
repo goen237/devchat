@@ -5,6 +5,7 @@ import DashboardPage from "./pages/DashboardPage";
 import ProfilePage from "./pages/ProfilePage";
 import UserListPage from "./pages/UserListPage";
 import ChatRoomPage from "./pages/ChatRoomPage";
+import AuthCallbackPage from "./pages/AuthCallbackPage";
 import { useAuthValidation } from "./hooks/useAuthValidation";
 
 // Composant de chargement
@@ -51,6 +52,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/" element={
           <ProtectedRoute>
             <DashboardPage />

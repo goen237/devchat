@@ -1,4 +1,4 @@
-import { AppDataSource } from "../config/data-source";
+import { getDataSource } from "../config/data-source";
 import { Message } from "../entities/Message";
 import { User } from "../entities/User";
 import { ChatRoom } from "../entities/ChatRoom";
@@ -32,7 +32,7 @@ export interface CreateFileMessageInput {
 
 // Prüfen ob User Mitglied des ChatRooms ist
 async function validateUserMembership(userId: string, chatRoomId: string): Promise<void> {
-  const chatRoomRepo = AppDataSource.getRepository(ChatRoom);
+  const chatRoomRepo = getDataSource().getRepository(ChatRoom);
   
   const chatRoom = await chatRoomRepo.findOne({
     where: { id: chatRoomId },
@@ -67,9 +67,9 @@ export async function createMessage(input: CreateMessageInput): Promise<MessageR
   
   await validateUserMembership(senderId, chatRoomId);
 
-  const messageRepo = AppDataSource.getRepository(Message);
-  const userRepo = AppDataSource.getRepository(User);
-  const chatRoomRepo = AppDataSource.getRepository(ChatRoom);
+  const messageRepo = getDataSource().getRepository(Message);
+  const userRepo = getDataSource().getRepository(User);
+  const chatRoomRepo = getDataSource().getRepository(ChatRoom);
 
   const sender = await userRepo.findOneBy({ id: senderId });
   const chatRoom = await chatRoomRepo.findOneBy({ id: chatRoomId });
@@ -109,7 +109,7 @@ export async function getMessagesByRoom(chatRoomId: string, userId: string, limi
     limit = 100; // Maximal 100 Nachrichten
   }
 
-  const messageRepo = AppDataSource.getRepository(Message);
+  const messageRepo = getDataSource().getRepository(Message);
 
   const messages = await messageRepo
     .createQueryBuilder("message")
@@ -149,9 +149,9 @@ export async function createFileMessage(input: CreateFileMessageInput): Promise<
   
   await validateUserMembership(senderId, chatRoomId);
 
-  const messageRepo = AppDataSource.getRepository(Message);
-  const userRepo = AppDataSource.getRepository(User);
-  const chatRoomRepo = AppDataSource.getRepository(ChatRoom);
+  const messageRepo = getDataSource().getRepository(Message);
+  const userRepo = getDataSource().getRepository(User);
+  const chatRoomRepo = getDataSource().getRepository(ChatRoom);
 
   const sender = await userRepo.findOneBy({ id: senderId });
   const chatRoom = await chatRoomRepo.findOneBy({ id: chatRoomId });
@@ -189,7 +189,7 @@ export async function createFileMessage(input: CreateFileMessageInput): Promise<
 }
 
 export async function deleteMessage(userId: string, messageId: string): Promise<void> {
-  const messageRepo = AppDataSource.getRepository(Message);
+  const messageRepo = getDataSource().getRepository(Message);
   
   const message = await messageRepo.findOne({ 
     where: { id: messageId }, 

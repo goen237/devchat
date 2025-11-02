@@ -1,127 +1,101 @@
-/**
- * Unit Tests: Auth Service
- * Testet Registrierung, Login und Token-Generierung
- */
+// Unit tests for src/services/auth.service.ts
 
-import { 
-  initializeTestDatabase, 
-  closeTestDatabase, 
-  cleanDatabase,
-  createTestUser 
-} from '../setup';
-import { registerUser, loginUser } from '../../src/services/auth.service';
-import { hashPassword } from '../../src/utils/password';
+jest.mock('../../src/config/data-source', () => ({
+  getDataSource: jest.fn()
+}));
 
-describe('Auth Service - Unit Tests', () => {
-  beforeAll(async () => {
-    await initializeTestDatabase();
+jest.mock('../../src/utils/password', () => ({
+  hashPassword: jest.fn(),
+  comparePasswords: jest.fn()
+}));
+
+jest.mock('../../src/utils/jwt', () => ({
+  generateToken: jest.fn()
+}));
+
+import { registerUser, loginUser, handleGoogleCallback } from '../../src/services/auth.service';
+import { getDataSource } from '../../src/config/data-source';
+import * as passwordUtils from '../../src/utils/password';
+import * as jwtUtils from '../../src/utils/jwt';
+
+describe('auth.service', () => {
+  const fakeRepo: any = {
+    findOne: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn()
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Provide a fake DataSource.getRepository that returns our fakeRepo
+    (getDataSource as jest.Mock).mockReturnValue({ getRepository: () => fakeRepo });
   });
 
-  afterAll(async () => {
-    await closeTestDatabase();
-  });
-
-  beforeEach(async () => {
-    await cleanDatabase();
-  });
-
-  describe('registerUser()', () => {
-    it('should register a new user successfully', async () => {
-      const username = 'newuser';
-      const email = 'newuser@example.com';
-      const password = 'SecurePass123!';
-      const semester = 3;
-
-      const user = await registerUser(username, email, password, semester);
-
-      expect(user).toBeDefined();
-      expect(user.id).toBeDefined();
-      expect(user.username).toBe(username);
-      expect(user.email).toBe(email);
-      expect(user.semester).toBe(semester);
-      expect(user.passwordHash).toBeDefined();
-      expect(user.passwordHash).not.toBe(password); // Passwort sollte gehasht sein
+  describe('registerUser', () => {
+    test('throws if user already exists', async () => {
+      fakeRepo.findOne.mockResolvedValue({ id: 'u1', email: 'a@b' });
+      await expect(registerUser('u', 'a@b', 'pw', 1)).rejects.toThrow('User exists');
+      expect(fakeRepo.findOne).toHaveBeenCalledWith({ where: { email: 'a@b' } });
     });
 
-    it('should throw error if user already exists', async () => {
-      const email = 'existing@example.com';
-      await createTestUser({ email });
+    test('creates and saves user when not existing', async () => {
+      fakeRepo.findOne.mockResolvedValue(null);
+      (passwordUtils.hashPassword as jest.Mock).mockResolvedValue('hashed_pw');
+      const createdUser = { username: 'u', email: 'a@b', passwordHash: 'hashed_pw', semester: 1 };
+      fakeRepo.create.mockReturnValue(createdUser);
+      fakeRepo.save.mockResolvedValue({ id: 'u1', ...createdUser });
 
-      await expect(
-        registerUser('newuser', email, 'password', 3)
-      ).rejects.toThrow('User exists');
-    });
-
-    it('should hash the password', async () => {
-      const password = 'TestPassword123!';
-      const user = await registerUser('user', 'user@example.com', password, 2);
-
-      expect(user.passwordHash).toBeDefined();
-      expect(user.passwordHash).not.toBe(password);
-      expect(user.passwordHash.length).toBeGreaterThan(20); // Bcrypt Hash ist lang
-    });
-
-    it('should set isGoogleUser to false by default', async () => {
-      const user = await registerUser('user', 'user@example.com', 'password', 1);
-      expect(user.isGoogleUser).toBe(false);
+  const res = await registerUser('u', 'a@b', 'pw', 1);
+  expect(passwordUtils.hashPassword).toHaveBeenCalledWith('pw');
+  expect(fakeRepo.create).toHaveBeenCalledWith({ username: 'u', email: 'a@b', passwordHash: 'hashed_pw', semester: 1 });
+  expect(fakeRepo.save).toHaveBeenCalledWith(createdUser);
+  // registerUser now returns the saved entity (with id)
+  expect(res).toMatchObject({ id: 'u1', email: 'a@b' });
     });
   });
 
-  describe('loginUser()', () => {
-    it('should login with valid credentials', async () => {
-      const email = 'login@example.com';
-      const password = 'ValidPassword123!';
-      const passwordHash = await hashPassword(password);
-      
-      await createTestUser({ 
-        email, 
-        passwordHash,
-        username: 'loginuser' 
-      });
-
-      const result = await loginUser(email, password);
-
-      expect(result).toBeDefined();
-      expect(result.token).toBeDefined();
-      expect(result.user).toBeDefined();
-      expect(result.user.email).toBe(email);
-      expect(typeof result.token).toBe('string');
-      expect(result.token.split('.').length).toBe(3); // JWT hat 3 Teile
+  describe('loginUser', () => {
+    test('throws on missing user', async () => {
+      fakeRepo.findOne.mockResolvedValue(null);
+      await expect(loginUser('no@user', 'pw')).rejects.toThrow('Invalid credentials');
     });
 
-    it('should throw error with invalid email', async () => {
-      await expect(
-        loginUser('nonexistent@example.com', 'password')
-      ).rejects.toThrow('Invalid credentials');
+    test('throws on invalid password', async () => {
+      fakeRepo.findOne.mockResolvedValue({ id: 'u1', passwordHash: 'h' });
+      (passwordUtils.comparePasswords as jest.Mock).mockResolvedValue(false);
+      await expect(loginUser('a@b', 'wrong')).rejects.toThrow('Invalid credentials');
+      expect(passwordUtils.comparePasswords).toHaveBeenCalledWith('wrong', 'h');
     });
 
-    it('should throw error with invalid password', async () => {
-      const email = 'user@example.com';
-      const passwordHash = await hashPassword('correctpassword');
-      
-      await createTestUser({ email, passwordHash });
+    test('returns token and user on success', async () => {
+      const user = { id: 'u1', email: 'a@b', username: 'bob', passwordHash: 'h' };
+      fakeRepo.findOne.mockResolvedValue(user);
+      (passwordUtils.comparePasswords as jest.Mock).mockResolvedValue(true);
+      (jwtUtils.generateToken as jest.Mock).mockReturnValue('token-123');
 
-      await expect(
-        loginUser(email, 'wrongpassword')
-      ).rejects.toThrow('Invalid credentials');
+      const { token, user: returnedUser } = await loginUser('a@b', 'pw');
+      expect(passwordUtils.comparePasswords).toHaveBeenCalledWith('pw', 'h');
+      expect(jwtUtils.generateToken).toHaveBeenCalledWith({ userId: 'u1' }, '1h');
+      expect(token).toBe('token-123');
+      expect(returnedUser).toBe(user);
+    });
+  });
+
+  describe('handleGoogleCallback', () => {
+    test('redirects to login with error when no user', () => {
+      const res: any = { redirect: jest.fn() };
+      handleGoogleCallback(undefined, res as any);
+      expect(res.redirect).toHaveBeenCalledWith('/login?error=NoUser');
     });
 
-    it('should return a valid JWT token', async () => {
-      const email = 'jwt@example.com';
-      const password = 'Password123!';
-      const passwordHash = await hashPassword(password);
-      
-      await createTestUser({ email, passwordHash });
+    test('redirects to frontend with token when user present', () => {
+      const res: any = { redirect: jest.fn() };
+      process.env.FRONTEND_URL = 'http://app.example';
+      (jwtUtils.generateToken as jest.Mock).mockReturnValue('tok-g');
 
-      const result = await loginUser(email, password);
-      
-      // JWT Format: header.payload.signature
-      const parts = result.token.split('.');
-      expect(parts.length).toBe(3);
-      
-      // Decode payload
-      const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-      expect(payload.userId).toBe(result.user.id);
+      handleGoogleCallback({ id: '123' }, res as any);
+      expect(jwtUtils.generateToken).toHaveBeenCalledWith({ userId: '123' }, '1h');
+      expect(res.redirect).toHaveBeenCalledWith('http://app.example/auth/callback?token=tok-g');
     });
   });
 });

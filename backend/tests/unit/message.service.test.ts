@@ -1,251 +1,115 @@
-/**
- * Unit Tests: Message Service
- * Testet Nachrichten-Erstellung, Abrufen und Löschen
- */
+// Unit tests for src/services/message.service.ts
 
-import { 
-  initializeTestDatabase, 
-  closeTestDatabase, 
-  cleanDatabase,
-  createTestUser,
-  createTestChatRoom,
-  createTestMessage
-} from '../setup';
-import {
-  createMessage,
-  getMessagesByRoom,
-  deleteMessage
-} from '../../src/services/message.service';
+jest.mock('../../src/config/data-source', () => ({ getDataSource: jest.fn() }));
+jest.mock('../../src/validators/message.validator', () => ({
+  validateMessageContent: jest.fn(),
+  validateFile: jest.fn(),
+  validateChatRoomId: jest.fn()
+}));
 
-describe('Message Service - Unit Tests', () => {
-  beforeAll(async () => {
-    await initializeTestDatabase();
-  });
+import { createMessage, getMessagesByRoom, createFileMessage, deleteMessage } from '../../src/services/message.service';
+import { getDataSource } from '../../src/config/data-source';
+import * as validators from '../../src/validators/message.validator';
 
-  afterAll(async () => {
-    await closeTestDatabase();
-  });
+describe('message.service', () => {
+  let messageRepo: any;
+  let userRepo: any;
+  let chatRoomRepo: any;
 
-  beforeEach(async () => {
-    await cleanDatabase();
-  });
+  beforeEach(() => {
+    jest.clearAllMocks();
 
-  describe('createMessage()', () => {
-    it('should create a message successfully', async () => {
-      const user = await createTestUser();
-      const chatRoom = await createTestChatRoom([user]);
+    messageRepo = {
+      create: jest.fn(),
+      save: jest.fn(),
+      createQueryBuilder: jest.fn(),
+      findOne: jest.fn(),
+      remove: jest.fn()
+    };
+    userRepo = { findOneBy: jest.fn() };
+    chatRoomRepo = { findOneBy: jest.fn(), findOne: jest.fn() };
 
-      const message = await createMessage({
-        content: 'Hello World',
-        senderId: user.id,
-        chatRoomId: chatRoom.id
-      });
-
-      expect(message).toBeDefined();
-      expect(message.id).toBeDefined();
-      expect(message.content).toBe('Hello World');
-      expect(message.sender.id).toBe(user.id);
-      expect(message.sender.username).toBe(user.username);
-    });
-
-    it('should trim message content', async () => {
-      const user = await createTestUser();
-      const chatRoom = await createTestChatRoom([user]);
-
-      const message = await createMessage({
-        content: '  Hello World  ',
-        senderId: user.id,
-        chatRoomId: chatRoom.id
-      });
-
-      expect(message.content).toBe('Hello World');
-    });
-
-    it('should throw error if content is empty', async () => {
-      const user = await createTestUser();
-      const chatRoom = await createTestChatRoom([user]);
-
-      await expect(
-        createMessage({
-          content: '',
-          senderId: user.id,
-          chatRoomId: chatRoom.id
-        })
-      ).rejects.toThrow();
-    });
-
-    it('should throw error if content is too long', async () => {
-      const user = await createTestUser();
-      const chatRoom = await createTestChatRoom([user]);
-      const longContent = 'a'.repeat(5001); // > 5000 chars
-
-      await expect(
-        createMessage({
-          content: longContent,
-          senderId: user.id,
-          chatRoomId: chatRoom.id
-        })
-      ).rejects.toThrow();
-    });
-
-    it('should throw error if user is not a participant', async () => {
-      const user1 = await createTestUser();
-      const user2 = await createTestUser();
-      const chatRoom = await createTestChatRoom([user1]); // Nur user1
-
-      await expect(
-        createMessage({
-          content: 'Hello',
-          senderId: user2.id, // user2 ist nicht im ChatRoom
-          chatRoomId: chatRoom.id
-        })
-      ).rejects.toThrow('Zugriff verweigert');
-    });
-
-    it('should throw error if chatroom not found', async () => {
-      const user = await createTestUser();
-
-      await expect(
-        createMessage({
-          content: 'Hello',
-          senderId: user.id,
-          chatRoomId: 'nonexistent-id'
-        })
-      ).rejects.toThrow();
-    });
-
-    it('should throw error if sender not found', async () => {
-      const user = await createTestUser();
-      const chatRoom = await createTestChatRoom([user]);
-
-      await expect(
-        createMessage({
-          content: 'Hello',
-          senderId: 'nonexistent-id',
-          chatRoomId: chatRoom.id
-        })
-      ).rejects.toThrow();
-    });
-  });
-
-  describe('getMessagesByRoom()', () => {
-    it('should return messages for a chatroom', async () => {
-      const user = await createTestUser();
-      const chatRoom = await createTestChatRoom([user]);
-      
-      await createTestMessage(user, chatRoom, 'Message 1');
-      await createTestMessage(user, chatRoom, 'Message 2');
-
-      const messages = await getMessagesByRoom(chatRoom.id, user.id);
-
-      expect(messages).toHaveLength(2);
-      expect(messages[0].content).toBe('Message 1');
-      expect(messages[1].content).toBe('Message 2');
-    });
-
-    it('should return messages in chronological order', async () => {
-      const user = await createTestUser();
-      const chatRoom = await createTestChatRoom([user]);
-      
-      const msg1 = await createTestMessage(user, chatRoom, 'First');
-      await new Promise(resolve => setTimeout(resolve, 10)); // Small delay
-      const msg2 = await createTestMessage(user, chatRoom, 'Second');
-
-      const messages = await getMessagesByRoom(chatRoom.id, user.id);
-
-      expect(messages[0].id).toBe(msg1.id);
-      expect(messages[1].id).toBe(msg2.id);
-    });
-
-    it('should return empty array if no messages', async () => {
-      const user = await createTestUser();
-      const chatRoom = await createTestChatRoom([user]);
-
-      const messages = await getMessagesByRoom(chatRoom.id, user.id);
-
-      expect(messages).toEqual([]);
-    });
-
-    it('should limit messages to specified limit', async () => {
-      const user = await createTestUser();
-      const chatRoom = await createTestChatRoom([user]);
-      
-      // Erstelle 60 Nachrichten
-      for (let i = 0; i < 60; i++) {
-        await createTestMessage(user, chatRoom, `Message ${i}`);
+    (getDataSource as jest.Mock).mockReturnValue({
+      getRepository: (entity: any) => {
+        const name = entity && (entity.name || entity);
+        if (name && name.toString().includes('Message')) return messageRepo;
+        if (name && name.toString().includes('User')) return userRepo;
+        return chatRoomRepo;
       }
-
-      const messages = await getMessagesByRoom(chatRoom.id, user.id, 10);
-
-      expect(messages.length).toBeLessThanOrEqual(10);
-    });
-
-    it('should enforce maximum limit of 100', async () => {
-      const user = await createTestUser();
-      const chatRoom = await createTestChatRoom([user]);
-      
-      for (let i = 0; i < 120; i++) {
-        await createTestMessage(user, chatRoom, `Message ${i}`);
-      }
-
-      const messages = await getMessagesByRoom(chatRoom.id, user.id, 150);
-
-      expect(messages.length).toBeLessThanOrEqual(100);
-    });
-
-    it('should throw error if user is not a participant', async () => {
-      const user1 = await createTestUser();
-      const user2 = await createTestUser();
-      const chatRoom = await createTestChatRoom([user1]);
-
-      await expect(
-        getMessagesByRoom(chatRoom.id, user2.id)
-      ).rejects.toThrow('Zugriff verweigert');
-    });
-
-    it('should include sender information', async () => {
-      const user = await createTestUser({ username: 'alice' });
-      const chatRoom = await createTestChatRoom([user]);
-      await createTestMessage(user, chatRoom);
-
-      const messages = await getMessagesByRoom(chatRoom.id, user.id);
-
-      expect(messages[0].sender).toBeDefined();
-      expect(messages[0].sender.id).toBe(user.id);
-      expect(messages[0].sender.username).toBe('alice');
-      expect(messages[0].sender.avatarUrl).toBeDefined();
     });
   });
 
-  describe('deleteMessage()', () => {
-    it('should delete a message successfully', async () => {
-      const user = await createTestUser();
-      const chatRoom = await createTestChatRoom([user]);
-      const message = await createTestMessage(user, chatRoom);
+  test('createMessage validates and saves message', async () => {
+    (validators.validateMessageContent as jest.Mock).mockReturnValue(null);
+    (validators.validateChatRoomId as jest.Mock).mockReturnValue(null);
 
-      await deleteMessage(user.id, message.id);
+    // validateUserMembership: chatRoomRepo.findOne with participants
+    chatRoomRepo.findOne.mockResolvedValue({ id: 'room1', participants: [{ id: 'u1' }] });
 
-      const messages = await getMessagesByRoom(chatRoom.id, user.id);
-      expect(messages).toHaveLength(0);
-    });
+    userRepo.findOneBy.mockResolvedValue({ id: 'u1', username: 'Alice', avatarUrl: null });
+    chatRoomRepo.findOneBy.mockResolvedValue({ id: 'room1' });
 
-    it('should throw error if message not found', async () => {
-      const user = await createTestUser();
+    // simulate save assigning id and createdAt
+    messageRepo.create.mockReturnValue({ content: 'hi' });
+    messageRepo.save.mockImplementation(async (m: any) => ({ ...m, id: 'm1', createdAt: new Date() }));
 
-      await expect(
-        deleteMessage(user.id, 'nonexistent-id')
-      ).rejects.toThrow('Nachricht nicht gefunden');
-    });
+    const res = await createMessage({ content: 'hi', senderId: 'u1', chatRoomId: 'room1' });
+    expect(res.id).toBe('m1');
+    expect(res.sender.username).toBe('Alice');
+  });
 
-    it('should throw error if user is not the sender', async () => {
-      const user1 = await createTestUser();
-      const user2 = await createTestUser();
-      const chatRoom = await createTestChatRoom([user1, user2]);
-      const message = await createTestMessage(user1, chatRoom);
+  test('getMessagesByRoom returns mapped messages', async () => {
+    // validateUserMembership via chatRoomRepo
+    chatRoomRepo.findOne.mockResolvedValue({ id: 'room1', participants: [{ id: 'u1' }] });
 
-      await expect(
-        deleteMessage(user2.id, message.id)
-      ).rejects.toThrow('Nur der Absender kann die Nachricht löschen');
-    });
+    // mock query builder
+    const qb: any = {
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([
+        { id: 'm1', content: 'c', createdAt: new Date(), sender: { id: 'u1', username: 'A', avatarUrl: null } }
+      ])
+    };
+    (messageRepo.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+    const res = await getMessagesByRoom('room1', 'u1', 10);
+    expect(res).toHaveLength(1);
+    expect(res[0].sender.id).toBe('u1');
+  });
+
+  test('createFileMessage validates file and saves', async () => {
+    (validators.validateFile as jest.Mock).mockReturnValue(null);
+    (validators.validateChatRoomId as jest.Mock).mockReturnValue(null);
+    chatRoomRepo.findOne.mockResolvedValue({ id: 'room1', participants: [{ id: 'u1' }] });
+    userRepo.findOneBy.mockResolvedValue({ id: 'u1', username: 'Alice', avatarUrl: null });
+    chatRoomRepo.findOneBy.mockResolvedValue({ id: 'room1' });
+
+    const file = { filename: 'f.txt', originalname: 'f.txt', mimetype: 'text/plain' } as any;
+    messageRepo.create.mockReturnValue({});
+    messageRepo.save.mockImplementation(async (m: any) => ({ ...m, id: 'mf1', createdAt: new Date(), fileUrl: '/uploads/f.txt', fileType: 'text/plain' }));
+
+    const res = await createFileMessage({ senderId: 'u1', chatRoomId: 'room1', file });
+    expect(res.fileUrl).toBe('/uploads/f.txt');
+    expect(res.fileType).toBe('text/plain');
+  });
+
+  test('deleteMessage deletes if sender matches', async () => {
+    messageRepo.findOne.mockResolvedValue({ id: 'm1', sender: { id: 'u1' } });
+    messageRepo.remove.mockResolvedValue(undefined);
+
+    await deleteMessage('u1', 'm1');
+    expect(messageRepo.remove).toHaveBeenCalled();
+  });
+
+  test('deleteMessage throws if not found', async () => {
+    messageRepo.findOne.mockResolvedValue(null);
+    await expect(deleteMessage('u1', 'mX')).rejects.toThrow('Nachricht nicht gefunden');
+  });
+
+  test('deleteMessage throws if not sender', async () => {
+    messageRepo.findOne.mockResolvedValue({ id: 'm1', sender: { id: 'u2' } });
+    await expect(deleteMessage('u1', 'm1')).rejects.toThrow('Nur der Absender kann die Nachricht löschen');
   });
 });

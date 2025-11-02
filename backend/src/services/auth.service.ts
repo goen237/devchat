@@ -1,8 +1,8 @@
 
 // entfernt: doppelte handleGoogleCallback-Definition
 
-import { AppDataSource } from "../config/data-source";
-import { User } from "../entities/User";
+import { getDataSource } from "../config/data-source";
+import { User } from "../entities";
 import { hashPassword, comparePasswords } from "../utils/password";
 import { generateToken } from "../utils/jwt";
 
@@ -11,13 +11,14 @@ import { generateToken } from "../utils/jwt";
  * @throws Error wenn User existiert
  */
 export const registerUser = async (username: string, email: string, password: string, semester: number) => {
-	const userRepo = AppDataSource.getRepository(User);
-	const existing = await userRepo.findOneBy({ email });
+	// Nutze String-Namen für Tests (TypeORM-Workaround)
+	const userRepo = getDataSource().getRepository(User);
+	const existing = await userRepo.findOne({ where: { email } });
 	if (existing) throw new Error("User exists");
 	const passwordHash = await hashPassword(password);
 	const user = userRepo.create({ username, email, passwordHash, semester });
-	await userRepo.save(user);
-	return user;
+	const saved = await userRepo.save(user);
+	return saved;
 };
 
 /**
@@ -25,8 +26,8 @@ export const registerUser = async (username: string, email: string, password: st
  * @throws Error bei ungültigen Credentials
  */
 export const loginUser = async (email: string, password: string) => {
-	const userRepo = AppDataSource.getRepository(User);
-	const user = await userRepo.findOneBy({ email });
+	const userRepo = getDataSource().getRepository(User);
+	const user = await userRepo.findOne({ where: { email } });
 	if (!user) throw new Error("Invalid credentials");
 	const valid = await comparePasswords(password, user.passwordHash);
 	if (!valid) throw new Error("Invalid credentials");
@@ -42,6 +43,7 @@ export const handleGoogleCallback = (user: { id?: string } | undefined, res: imp
 		return res.redirect("/login?error=NoUser");
 	}
 	const token = generateToken({ userId: user.id }, "1h");
-	res.redirect(`/?token=${token}`);
+	const redirectUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+	res.redirect(`${redirectUrl}/auth/callback?token=${token}`);
 };
 

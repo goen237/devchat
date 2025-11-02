@@ -49,8 +49,8 @@ Write-Host ""
 Write-Host "SUCCESS: Deployment Complete!" -ForegroundColor Green
 Write-Host ""
 Write-Host "Access your application:" -ForegroundColor Cyan
-Write-Host "  Frontend: http://localhost:3000" -ForegroundColor White
-Write-Host "  Backend:  http://localhost:5000" -ForegroundColor White
+Write-Host "  Frontend: http://localhost:5173" -ForegroundColor White
+Write-Host "  Backend:  http://localhost:4000" -ForegroundColor White
 Write-Host ""
 Write-Host "Useful commands:" -ForegroundColor Cyan
 Write-Host "  docker-compose logs -f        # View logs" -ForegroundColor White

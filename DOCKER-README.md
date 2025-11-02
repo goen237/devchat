@@ -26,9 +26,9 @@ docker-compose up -d
 ```
 
 ### 3. Zugreifen
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:5000
-- **Health Check**: http://localhost:5000/health
+- **Frontend**: http://localhost:5173
+- **Backend API**: http://localhost:4000
+- **Health Check**: http://localhost:4000/health
 
 ---
 
@@ -36,8 +36,8 @@ docker-compose up -d
 
 | Service | Port | Beschreibung |
 |---------|------|--------------|
-| Frontend | 3000 | React + Vite |
-| Backend | 5000 | Node.js + Express + Socket.io |
+| Frontend | 5173 | React + Vite |
+| Backend | 4000 | Node.js + Express + Socket.io |
 | Redis | 6379 | Caching & Sessions |
 | PostgreSQL* | 5432 | Optional (wenn nicht Supabase) |
 
@@ -74,7 +74,7 @@ docker-compose logs -f backend
 docker-compose exec backend sh
 
 # Health Check
-curl http://localhost:5000/health
+curl http://localhost:4000/health
 ```
 
 ### Updates
@@ -149,7 +149,7 @@ ping db.xxxxx.supabase.co
 ### Problem: Frontend zeigt Fehler
 ```powershell
 # Prüfe Backend Health
-curl http://localhost:5000/health
+curl http://localhost:4000/health
 
 # Prüfe Logs
 docker-compose logs -f backend
@@ -159,7 +159,7 @@ docker-compose logs -f backend
 Ändere in `docker-compose.yaml`:
 ```yaml
 ports:
-  - "8080:80"  # Statt 3000
+  - "8080:80"  # Statt 5173
 ```
 
 ### Problem: Build Fehler
@@ -181,7 +181,7 @@ Alle Services haben Health Checks:
 docker-compose ps
 
 # Backend Health
-curl http://localhost:5000/health
+curl http://localhost:4000/health
 
 # Response:
 # {

@@ -1,8 +1,9 @@
 // services/avatar.service.ts - KOMPLETT NEU SCHREIBEN
 import fs from 'fs';
 import path from 'path';
-import { AppDataSource } from '../config/data-source';
+import { getDataSource } from '../config/data-source';
 import { User } from '../entities/User';
+import { cacheWrapper, deleteCache } from '../utils/cache';
 
 export interface Avatar {
   id: string;
@@ -12,15 +13,22 @@ export interface Avatar {
 }
 
 export class AvatarService {
-  private userRepository = AppDataSource.getRepository(User);
+  private userRepository = getDataSource().getRepository(User);
   // 🔥 FIXED: Korrekter Pfad zu den Avatar-Dateien
   private presetAvatarsPath = path.join(__dirname, '../../public/avatars');
   private uploadedAvatarsPath = path.join(__dirname, '../../uploads');
 
   // Alle verfügbaren Avatare (Preset)
+  // MIT CACHING: Avatar-Liste ändert sich selten (nur bei Deployment)
   async getAvailableAvatars(): Promise<Avatar[]> {
-    const presetAvatars = await this.getPresetAvatars();
-    return [...presetAvatars];
+    return await cacheWrapper(
+      'avatars:available',
+      async () => {
+        const presetAvatars = await this.getPresetAvatars();
+        return [...presetAvatars];
+      },
+      3600 // 1 Stunde Cache (Avatar-Liste ändert sich extrem selten)
+    );
   }
 
   // 🔥 FIXED: Preset-Avatare (sowohl SVG als auch JPG)
@@ -48,6 +56,7 @@ export class AvatarService {
 
 
   // Avatar auswählen
+  // Cache-Invalidierung: Löscht User-Profile-Cache nach Avatar-Update
   async selectAvatar(userId: string, avatarId: string): Promise<User> {
     const avatars = await this.getAvailableAvatars();
     const selectedAvatar = avatars.find(a => a.id === avatarId);
@@ -62,7 +71,12 @@ export class AvatarService {
     }
 
     user.avatarUrl = selectedAvatar.url;
-    return await this.userRepository.save(user);
+    await this.userRepository.save(user);
+    
+    // 🗑️ CACHE INVALIDIERUNG: Lösche User-Profile-Cache
+    await deleteCache(`profile:${userId}`);
+    
+    return user;
   }
 
   // Avatar-Datei bereitstellen (nur noch für Preset-Avatare)

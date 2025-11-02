@@ -1,4 +1,4 @@
-import { AppDataSource } from '../config/data-source';
+import { getDataSource } from '../config/data-source';
 import { ChatRoom } from '../entities/ChatRoom';
 import { AuthenticatedSocket, JoinRoomData, LeaveRoomData, RoomJoinedData, UserJoinedRoomData, UserLeftRoomData, ErrorData, SocketServer } from './types';
 
@@ -18,7 +18,7 @@ export function setupChatRoomSocket(io: SocketServer, socket: AuthenticatedSocke
       console.log(`🏠 ${user.username} joining room ${data.chatroomId}`);
 
       // ChatRoom aus DB laden
-      const chatRoomRepo = AppDataSource.getRepository(ChatRoom);
+      const chatRoomRepo = getDataSource().getRepository(ChatRoom);
       const chatRoom = await chatRoomRepo.findOne({
         where: { id: data.chatroomId },
         relations: ['participants']

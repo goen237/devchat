@@ -1,4 +1,4 @@
-import { AppDataSource } from '../config/data-source';
+import { getDataSource } from '../config/data-source';
 import { User } from '../entities/User';
 import { AuthenticatedSocket, UserOnlineData, UserOfflineData, SocketServer } from './types';
 
@@ -24,7 +24,7 @@ export function setupUserSocket(io: SocketServer, socket: AuthenticatedSocket) {
 
 async function setUserOnline(userId: string, socket: AuthenticatedSocket) {
   try {
-    const userRepo = AppDataSource.getRepository(User);
+    const userRepo = getDataSource().getRepository(User);
     const user = await userRepo.findOne({ where: { id: userId } });
     
     if (!user) return;
@@ -47,7 +47,7 @@ async function setUserOnline(userId: string, socket: AuthenticatedSocket) {
 
 async function setUserOffline(userId: string, io: SocketServer) {
   try {
-    const userRepo = AppDataSource.getRepository(User);
+    const userRepo = getDataSource().getRepository(User);
     const user = await userRepo.findOne({ where: { id: userId } });
     
     if (!user) return;

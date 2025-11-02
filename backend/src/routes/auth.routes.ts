@@ -1,12 +1,17 @@
 import { Router } from "express";
-import { register, login, googleCallbackController } from "../controllers/auth.controller";
+import { register, login, logout, googleCallbackController } from "../controllers/auth.controller";
 import passport from "../middleware/passport";
+import { authMiddleware } from "../middleware/authMiddleware";
+import { authRateLimit } from "../middleware/rateLimit";
 
 const router = Router();
 
+// Public Routes mit Rate Limiting
+router.post("/register", authRateLimit, register);
+router.post("/login", authRateLimit, login);
 
-router.post("/register", register);
-router.post("/login", login);
+// Protected Logout Route (benötigt Token)
+router.post("/logout", authMiddleware, logout);
 
 // Google OAuth2: Redirect to Google
 router.get("/google-oauth", passport.authenticate("google", { scope: ["profile", "email"] }));

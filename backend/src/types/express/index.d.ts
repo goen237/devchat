@@ -9,5 +9,9 @@ declare global {
       semester?: number;
       // weitere Felder nach Bedarf
     }
+
+    interface Request {
+      user?: User;
+    }
   }
 }

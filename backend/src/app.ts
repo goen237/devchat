@@ -6,11 +6,12 @@ import profileRoutes from "./routes/profile.routes";
 import chatroomRoutes from "./routes/chatroom.routes";
 import userRoutes from "./routes/user.routes";
 import avatarRoutes from "./routes/avatar.routes";
+import { standardRateLimit } from "./middleware/rateLimit";
+import path from "path";
 
 
 const app = express();
 app.use(express.json());
-
 
 app.use(cors({
   origin: process.env.CORS_ORIGIN || "http://localhost:5173", 
@@ -26,13 +27,15 @@ app.get("/health", (req, res) => {
   });
 });
 
+
 // Static file serving for uploads
-import path from "path";
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 app.use("/avatars", express.static(path.join(__dirname, "..", "public", "avatars")));
 
-// Routes
+// Global Rate Limiting für alle API-Endpoints
+app.use("/api", standardRateLimit);
 
+// Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/profile", profileRoutes);
