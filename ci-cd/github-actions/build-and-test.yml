@@ -1,0 +1,39 @@
+name: Build and test (resilient npm install)
+
+on:
+	push:
+		branches: [ main ]
+	pull_request:
+		branches: [ main ]
+
+jobs:
+	build-and-test:
+		runs-on: ubuntu-latest
+		steps:
+			- name: Checkout
+				uses: actions/checkout@v4
+
+			- name: Use Node.js
+				uses: actions/setup-node@v4
+				with:
+					node-version: '20'
+
+			- name: Try npm ci with fallback
+				shell: bash
+				run: |
+					set -euo pipefail
+					echo "Trying npm ci..."
+					if npm ci; then
+						echo "npm ci succeeded"
+					else
+						echo "npm ci failed — attempting recovery: clean cache, regenerate lockfile, retry"
+						npm cache clean --force || true
+						# regenerate package-lock based on package.json (no changes to package.json)
+						npm install --package-lock-only
+						npm ci
+					fi
+
+			- name: Run tests
+				run: |
+					cd backend
+					npm run test:coverage --silent

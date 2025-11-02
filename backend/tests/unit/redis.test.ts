@@ -13,8 +13,8 @@ describe('redis config helpers', () => {
     (redisModule.redisClient as any).del = jest.fn().mockResolvedValue(1);
     (redisModule.redisClient as any).incr = jest.fn().mockResolvedValue(1);
     (redisModule.redisClient as any).expire = jest.fn().mockResolvedValue(1);
-    // default isOpen false
-    (redisModule.redisClient as any).isOpen = false;
+    // default isOpen false (redis client exposes isOpen as getter-only)
+    Object.defineProperty(redisModule.redisClient as any, 'isOpen', { configurable: true, get: () => false });
 
     jest.clearAllMocks();
     console.error = jest.fn();
@@ -27,27 +27,27 @@ describe('redis config helpers', () => {
   });
 
   test('isRedisConnected reflects client.isOpen', () => {
-    (redisModule.redisClient as any).isOpen = true;
+    Object.defineProperty(redisModule.redisClient as any, 'isOpen', { configurable: true, get: () => true });
     expect(redisModule.isRedisConnected()).toBe(true);
 
-    (redisModule.redisClient as any).isOpen = false;
+    Object.defineProperty(redisModule.redisClient as any, 'isOpen', { configurable: true, get: () => false });
     expect(redisModule.isRedisConnected()).toBe(false);
   });
 
   test('connectRedis returns early when already connected', async () => {
-    (redisModule.redisClient as any).isOpen = true;
+    Object.defineProperty(redisModule.redisClient as any, 'isOpen', { configurable: true, get: () => true });
     await redisModule.connectRedis();
     expect((redisModule.redisClient as any).connect).not.toHaveBeenCalled();
   });
 
   test('connectRedis calls connect when not connected', async () => {
-    (redisModule.redisClient as any).isOpen = false;
+    Object.defineProperty(redisModule.redisClient as any, 'isOpen', { configurable: true, get: () => false });
     await redisModule.connectRedis();
     expect((redisModule.redisClient as any).connect).toHaveBeenCalled();
   });
 
   test('connectRedis swallows errors from connect', async () => {
-    (redisModule.redisClient as any).isOpen = false;
+    Object.defineProperty(redisModule.redisClient as any, 'isOpen', { configurable: true, get: () => false });
     (redisModule.redisClient as any).connect = jest.fn().mockRejectedValue(new Error('conn fail'));
     await expect(redisModule.connectRedis()).resolves.toBeUndefined();
     expect(console.error).toHaveBeenCalled();
@@ -107,55 +107,5 @@ describe('redis config helpers', () => {
     (redisModule.redisClient as any).expire = jest.fn().mockRejectedValue(new Error('exp fail'));
     await expect(redisModule.expire('k', 30)).resolves.toBeUndefined();
     expect(console.error).toHaveBeenCalled();
-  });
-  });
-
-describe('redis config helpers', () => {
-  beforeEach(() => jest.clearAllMocks());
-
-  test('setWithExpiry calls setEx', async () => {
-    // @ts-ignore
-    redisModule.redisClient.setEx = jest.fn().mockResolvedValue('OK');
-    await redisModule.setWithExpiry('k', 'v', 10);
-    expect((redisModule.redisClient.setEx as jest.Mock)).toHaveBeenCalledWith('k', 10, 'v');
-  });
-
-  test('get returns value and handles errors', async () => {
-    // @ts-ignore
-    redisModule.redisClient.get = jest.fn().mockResolvedValue('val');
-    const v = await redisModule.get('k');
-    expect(v).toBe('val');
-
-    // simulate error
-    // @ts-ignore
-    redisModule.redisClient.get = jest.fn(() => { throw new Error('boom'); });
-    const v2 = await redisModule.get('k');
-    expect(v2).toBeNull();
-  });
-
-  test('del/increment/expire call respective client methods', async () => {
-    // @ts-ignore
-    redisModule.redisClient.del = jest.fn().mockResolvedValue(1);
-    await redisModule.del('k');
-    expect((redisModule.redisClient.del as jest.Mock)).toHaveBeenCalledWith('k');
-
-    // @ts-ignore
-    redisModule.redisClient.incr = jest.fn().mockResolvedValue(2);
-    const c = await redisModule.increment('ctr');
-    expect(c).toBe(2);
-
-    // @ts-ignore
-    redisModule.redisClient.expire = jest.fn().mockResolvedValue(1);
-    await redisModule.expire('k', 30);
-    expect((redisModule.redisClient.expire as jest.Mock)).toHaveBeenCalledWith('k', 30);
-  });
-
-  test('isRedisConnected returns client isOpen state', () => {
-    // @ts-ignore
-    redisModule.redisClient.isOpen = true;
-    expect(redisModule.isRedisConnected()).toBe(true);
-    // @ts-ignore
-    redisModule.redisClient.isOpen = false;
-    expect(redisModule.isRedisConnected()).toBe(false);
   });
 });
