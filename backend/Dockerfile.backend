@@ -13,7 +13,7 @@ COPY tsconfig.json ./
 
 # Install ALL dependencies (including devDependencies for build)
 # Delete package-lock.json if corrupt, then install fresh
-RUN rm -f package-lock.json && npm install --legacy-peer-deps
+RUN rm -f package-lock.json && npm install
 
 # Copy source code
 COPY src ./src

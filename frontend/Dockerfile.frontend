@@ -11,7 +11,7 @@ COPY package*.json ./
 # Install dependencies
 # --legacy-peer-deps: Ignoriert Peer Dependency Konflikte (React 19 vs mdb-react-ui-kit)
 # Delete package-lock.json if corrupt, then install fresh
-RUN rm -f package-lock.json && npm install --legacy-peer-deps
+RUN rm -f package-lock.json && npm install
 
 # Copy source code
 COPY . .
