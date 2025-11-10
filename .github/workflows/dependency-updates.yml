@@ -40,7 +40,7 @@ jobs:
           npm list --depth=0 > dependencies-${{ matrix.project }}.txt || true
 
       - name: Upload dependency report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: dependency-report-${{ matrix.project }}
           path: ${{ matrix.project }}/dependencies-${{ matrix.project }}.txt
