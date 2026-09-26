@@ -73,7 +73,7 @@ Das war's! 🎉
 cd backend
 
 # 1. Dependencies installieren
-npm install
+pnpm install
 
 # 2. Environment Variables
 copy .env.example .env
@@ -82,10 +82,10 @@ copy .env.example .env
 # Siehe unten für Details
 
 # 4. Datenbank initialisieren
-npm run seed
+pnpm run seed
 
 # 5. Development Server starten
-npm run dev
+pnpm run dev
 ```
 
 **Backend `.env`:**
@@ -115,13 +115,13 @@ CORS_ORIGIN=http://localhost:5173
 cd frontend
 
 # 1. Dependencies installieren
-npm install
+pnpm install
 
 # 2. Environment Variables
 copy .env.example .env
 
 # 3. Development Server starten
-npm run dev
+pnpm run dev
 ```
 
 **Frontend `.env`:**
@@ -561,7 +561,7 @@ cd devchat
 
 ```bash
 # 1. Heroku CLI installieren
-npm install -g heroku
+pnpm install -g heroku
 
 # 2. Login
 heroku login
@@ -763,8 +763,8 @@ docker-compose exec -T postgres psql -U postgres devchat < backup.sql
 git pull origin main
 
 # 2. Dependencies aktualisieren
-cd backend && npm install
-cd frontend && npm install
+cd backend && pnpm install
+cd frontend && pnpm install
 
 # 3. Docker Images neu bauen
 docker-compose build
@@ -901,7 +901,7 @@ services:
     environment:
       - DEBUG=*
       - LOG_LEVEL=debug
-    command: npm run dev
+    command: pnpm run dev
 ```
 
 **Frontend Debug:**

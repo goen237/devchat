@@ -1,0 +1,13 @@
+# Development overrides — merged automatically by `docker compose up`.
+# Production: docker compose -f docker-compose.yaml up -d
+services:
+  redis:
+    container_name: devchat-redis
+    ports:
+      - "6379:6379"
+
+  backend:
+    container_name: devchat-backend
+
+  frontend:
+    container_name: devchat-frontend

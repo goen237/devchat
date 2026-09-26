@@ -219,8 +219,8 @@ initializeSocket(server);
 3. **Backend Dependencies installieren:**
    ```bash
    cd backend
-   npm install redis
-   npm install @types/redis --save-dev
+   pnpm install redis
+   pnpm install @types/redis --save-dev
    ```
 
 4. **Environment Variable setzen:**
@@ -231,7 +231,7 @@ initializeSocket(server);
 
 5. **Server starten:**
    ```bash
-   npm run dev
+   pnpm run dev
    ```
 
 ### Docker Deployment
@@ -239,7 +239,7 @@ initializeSocket(server);
 1. **Dependencies installieren:**
    ```bash
    cd backend
-   npm install
+   pnpm install
    ```
 
 2. **Docker Compose starten:**
@@ -449,7 +449,7 @@ Du hast jetzt:
 6. ✅ Monitoring & Debugging Tools
 
 **Nächste Schritte:**
-1. `npm install redis` im Backend
+1. `pnpm install redis` im Backend
 2. `.env` anpassen mit `REDIS_URL`
 3. `docker-compose up --build` starten
 4. Rate Limiting und Logout testen

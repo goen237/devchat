@@ -23,19 +23,19 @@ Test Suite Overview:
 cd backend
 
 # Alle Tests laufen lassen
-npm test
+pnpm test
 
 # Mit Coverage Report
-npm run test:coverage
+pnpm run test:coverage
 
 # Nur Unit Tests
-npm run test:unit
+pnpm run test:unit
 
 # Nur Integration Tests
-npm run test:integration
+pnpm run test:integration
 
 # Watch Mode (Development)
-npm run test:watch
+pnpm run test:watch
 ```
 
 ---
@@ -46,11 +46,11 @@ npm run test:watch
 
 ```bash
 # Automatisches Setup und Test-Run
-npm run test:docker
+pnpm run test:docker
 
 # Oder manuell
 .\scripts\docker-test-db.ps1
-npm test
+pnpm test
 ```
 
 ### Option 2: Lokale PostgreSQL
@@ -68,7 +68,7 @@ DB_PASSWORD=postgres
 DB_NAME_TEST=devchat_test
 
 # Tests laufen lassen
-npm test
+pnpm test
 ```
 
 ---
@@ -536,7 +536,7 @@ describe('Socket.io', () => {
 
 ```bash
 # Coverage Report generieren
-npm run test:coverage
+pnpm run test:coverage
 
 # Coverage in Browser öffnen
 # backend/coverage/lcov-report/index.html
@@ -648,9 +648,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-      - run: npm ci
-      - run: npm test
-      - run: npm run test:coverage
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm run test:coverage
 ```
 
 ---
@@ -677,19 +677,19 @@ jest.setTimeout(51730);
 
 ```bash
 # Run specific test file
-npm test -- auth.service.test.ts
+pnpm test -- auth.service.test.ts
 
 # Run specific test case
-npm test -- -t "should register user"
+pnpm test -- -t "should register user"
 
 # Debug with Node Inspector
 node --inspect-brk node_modules/.bin/jest
 
 # Verbose output
-npm test -- --verbose
+pnpm test -- --verbose
 
 # No coverage
-npm test -- --coverage=false
+pnpm test -- --coverage=false
 ```
 
 ---

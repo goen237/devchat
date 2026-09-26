@@ -8,7 +8,7 @@ Dieses Dokument beschreibt, wie du die Unit- und Integrationstests lokal ausfüh
 
 ```powershell
 cd C:\Users\georr\devchat\backend
-npm run test:unit
+pnpm run test:unit
 ```
 
 - Unit‑Tests sind isoliert: sie mocken Dateisystem, Redis/Cache und die TypeORM DataSource, sodass sie schnell und deterministisch laufen.
@@ -19,7 +19,7 @@ npm run test:unit
 
 ```powershell
 cd C:\Users\georr\devchat\backend
-npm run test:integration
+pnpm run test:integration
 ```
 
 - Hinweise:

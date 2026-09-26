@@ -7,9 +7,6 @@ services:
   # - Caching (Performance)
   redis:
     image: redis:7-alpine
-    container_name: devchat-redis
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     # Redis Configuration (ohne Passwort für lokale Entwicklung)
@@ -28,7 +25,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.backend
-    container_name: devchat-backend
     env_file:
       - ./backend/.env
     # Force Google DNS for better IPv4 resolution
@@ -42,8 +38,7 @@ services:
       - ./backend/public/avatars:/app/public/avatars
       - ./backend/uploads:/app/uploads
     depends_on:
-      redis:
-        condition: service_healthy
+      - redis
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:4000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
       interval: 30s
@@ -61,14 +56,12 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.frontend
-    container_name: devchat-frontend
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:4000}
     ports:
       - "5173:80"
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
       interval: 30s
@@ -80,14 +73,7 @@ services:
 
 networks:
   devchat-network:
-     driver: bridge
-     enable_ipv6: true
-     ipam:
-        config:
-          - subnet: 172.20.0.0/16
-            gateway: 172.20.0.1
-          - subnet: 2001:db8:1::/64
-            gateway: 2001:db8:1::1
+    driver: bridge
 
 volumes:
   redis_data:  # Redis persistenter Speicher

@@ -202,14 +202,14 @@ docker-compose restart backend
 **Lokaler Server:**
 ```bash
 # Backend stoppen
-npm run dev (Ctrl+C)
+pnpm run dev (Ctrl+C)
 
 # Redis neustarten
 redis-cli shutdown
 redis-server &
 
 # Backend starten
-npm run dev
+pnpm run dev
 ```
 
 ## ⚠️ Bekannte Probleme

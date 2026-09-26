@@ -110,6 +110,7 @@ Eine moderne, Echtzeit-Chat-Anwendung mit WebSockets, gebaut mit React, Node.js,
 ### Voraussetzungen
 
 - Node.js 20.x oder höher
+- pnpm 10 (`corepack enable` aktiviert es automatisch)
 - Docker & Docker Compose
 - Git
 - PostgreSQL 15+ (lokal oder Supabase)
@@ -146,24 +147,24 @@ cd devchat
 
 # 2. Backend Setup
 cd backend
-npm install
+pnpm install
 copy .env.example .env
 # .env konfigurieren
 
 # Datenbank initialisieren
-npm run seed
+pnpm run seed
 
 # Backend starten
-npm run dev
+pnpm run dev
 
 # 3. Frontend Setup (neues Terminal)
 cd ../frontend
-npm install
+pnpm install
 copy .env.example .env
 # .env konfigurieren
 
 # Frontend starten
-npm run dev
+pnpm run dev
 ```
 
 ---
@@ -178,7 +179,7 @@ npm run dev
 cd backend
 
 # Dependencies installieren
-npm install
+pnpm install
 
 # Environment Variables
 copy .env.example .env
@@ -216,10 +217,10 @@ REDIS_PORT=6379
 
 ```bash
 # Mit Seed-Daten
-npm run seed
+pnpm run seed
 
 # Oder nur TypeORM sync (automatisch beim Start)
-npm run dev
+pnpm run dev
 ```
 
 #### 2. Frontend Setup
@@ -228,7 +229,7 @@ npm run dev
 cd frontend
 
 # Dependencies installieren
-npm install
+pnpm install
 
 # Environment Variables
 copy .env.example .env
@@ -267,16 +268,16 @@ docker-compose down
 cd backend
 
 # Development Server mit Hot-Reload
-npm run dev
+pnpm run dev
 
 # TypeScript kompilieren
-npm run build
+pnpm run build
 
 # Production starten
-npm start
+pnpm start
 
 # Datenbank seeden
-npm run seed
+pnpm run seed
 ```
 
 **Backend Struktur:**
@@ -307,16 +308,16 @@ backend/
 cd frontend
 
 # Development Server
-npm run dev
+pnpm run dev
 
 # Production Build
-npm run build
+pnpm run build
 
 # Preview Build
-npm run preview
+pnpm run preview
 
 # Linting
-npm run lint
+pnpm run lint
 ```
 
 **Frontend Struktur:**
@@ -419,22 +420,22 @@ Das Projekt hat **87 Tests**:
 cd backend
 
 # Alle Tests
-npm test
+pnpm test
 
 # Unit Tests
-npm run test:unit
+pnpm run test:unit
 
 # Integration Tests
-npm run test:integration
+pnpm run test:integration
 
 # Mit Coverage
-npm run test:coverage
+pnpm run test:coverage
 
 # Watch Mode
-npm run test:watch
+pnpm run test:watch
 
 # Docker Test Database
-npm run test:docker
+pnpm run test:docker
 ```
 
 ### Test Kategorien
@@ -470,7 +471,7 @@ tests/integration/socket.test.ts        # 8 Tests
 
 **Option 1: Docker (Empfohlen)**
 ```bash
-npm run test:docker
+pnpm run test:docker
 ```
 
 **Option 2: Manuell**
@@ -479,7 +480,7 @@ npm run test:docker
 .\scripts\docker-test-db.ps1
 
 # Tests laufen lassen
-npm test
+pnpm test
 ```
 
 Siehe [tests/README.md](tests/README.md) für detaillierte Test-Dokumentation.
@@ -744,7 +745,7 @@ docker-compose restart backend
 # DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD korrekt?
 
 # Datenbank erreichbar testen
-docker-compose exec backend npm run seed
+docker-compose exec backend pnpm run seed
 ```
 
 #### Problem: Frontend kann Backend nicht erreichen
@@ -771,7 +772,7 @@ VITE_SOCKET_URL=http://localhost:4000
 
 ```bash
 # Test Database Setup
-npm run test:docker
+pnpm run test:docker
 
 # Umgebungsvariablen für Tests prüfen
 # Siehe tests/.env.test
@@ -803,11 +804,11 @@ Beiträge sind willkommen! Bitte folge diesem Workflow:
 ```bash
 # Backend Linting
 cd backend
-npm run lint
+pnpm run lint
 
 # Frontend Linting
 cd frontend
-npm run lint
+pnpm run lint
 ```
 
 ---

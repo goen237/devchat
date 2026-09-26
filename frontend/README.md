@@ -78,7 +78,7 @@ React + TypeScript + Vite Frontend für die DevChat Echtzeit-Chat-Anwendung.
 
 ```bash
 # 1. Dependencies installieren
-npm install
+pnpm install
 
 # 2. Environment Variables
 copy .env.example .env
@@ -88,7 +88,7 @@ VITE_API_URL=http://localhost:4000
 VITE_SOCKET_URL=http://localhost:4000
 
 # 4. Development Server starten
-npm run dev
+pnpm run dev
 
 # Browser öffnet automatisch: http://localhost:5173
 ```
@@ -97,19 +97,19 @@ npm run dev
 
 ```bash
 # Development Server
-npm run dev
+pnpm run dev
 
 # Production Build
-npm run build
+pnpm run build
 
 # Build Preview
-npm run preview
+pnpm run preview
 
 # Linting
-npm run lint
+pnpm run lint
 
 # Type Checking
-npm run type-check
+pnpm run type-check
 ```
 
 ---
@@ -810,14 +810,14 @@ export const theme = createTheme({
 ### Development Build
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 ### Production Build
 
 ```bash
 # Build
-npm run build
+pnpm run build
 
 # Output: dist/
 # - Optimized assets
@@ -829,7 +829,7 @@ npm run build
 ### Preview Build
 
 ```bash
-npm run preview
+pnpm run preview
 ```
 
 ### Docker Build
@@ -839,9 +839,9 @@ npm run preview
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+RUN pnpm install --frozen-lockfile
 COPY . .
-RUN npm run build
+RUN pnpm run build
 
 FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html

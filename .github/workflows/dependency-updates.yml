@@ -21,23 +21,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20.x'
-          cache: 'npm'
-          cache-dependency-path: ${{ matrix.project }}/package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: ${{ matrix.project }}/pnpm-lock.yaml
 
       - name: Check for outdated packages
         working-directory: ./${{ matrix.project }}
         run: |
           echo "Checking for outdated packages in ${{ matrix.project }}..."
-          npm outdated || true
+          pnpm outdated || true
 
       - name: Generate dependency report
         working-directory: ./${{ matrix.project }}
         run: |
-          npm list --depth=0 > dependencies-${{ matrix.project }}.txt || true
+          pnpm list --depth=0 > dependencies-${{ matrix.project }}.txt || true
 
       - name: Upload dependency report
         uses: actions/upload-artifact@v4
