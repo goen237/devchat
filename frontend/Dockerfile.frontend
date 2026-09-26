@@ -11,7 +11,7 @@ COPY pnpm-lock.yaml ./
 
 # Install dependencies using Corepack + pnpm for reproducible installs
 # --frozen-lockfile ensures the lockfile is respected
-RUN corepack enable && corepack prepare pnpm@latest --activate \
+RUN corepack enable && corepack prepare pnpm@10.34.5 --activate \
   && pnpm install --frozen-lockfile
 
 # Copy source code

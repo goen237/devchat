@@ -2,7 +2,7 @@ import multer from 'multer';
 import { MulterFile } from '../types/multer';
 import path from 'path';
 import fs from 'fs';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 
 // Upload-Verzeichnis sicherstellen
 const uploadDir = 'uploads';
@@ -35,7 +35,7 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => {
     // Sicherer Dateiname: Zeitstempel + UUID + Original-Endung
     const timestamp = Date.now();
-    const uniqueId = uuidv4();
+    const uniqueId = randomUUID();
     const originalExt = path.extname(file.originalname).toLowerCase();
     const safeName = `${timestamp}-${uniqueId}${originalExt}`;
     cb(null, safeName);

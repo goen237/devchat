@@ -36,8 +36,7 @@
     "reflect-metadata": "^0.2.2",
     "socket.io": "^4.8.1",
     "sqlite3": "^5.1.7",
-    "typeorm": "^0.3.27",
-    "uuid": "^13.0.0"
+    "typeorm": "^0.3.27"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
@@ -60,5 +59,12 @@
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "bcrypt",
+      "sqlite3",
+      "unrs-resolver"
+    ]
   }
 }

@@ -14,7 +14,7 @@ COPY tsconfig.json ./
 
 # Install ALL dependencies (including devDependencies for build)
 # Delete package-lock.json if corrupt, then install fresh
-RUN corepack enable && corepack prepare pnpm@latest --activate \
+RUN corepack enable && corepack prepare pnpm@10.34.5 --activate \
   && pnpm install --frozen-lockfile
 
 # Copy source code
@@ -38,7 +38,7 @@ COPY pnpm-lock.yaml ./
 ENV NODE_ENV=production
 
 # Install production dependencies using Corepack + pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate \
+RUN corepack enable && corepack prepare pnpm@10.34.5 --activate \
   && pnpm install --prod --frozen-lockfile && pnpm store prune
 
 # Copy built files from builder
