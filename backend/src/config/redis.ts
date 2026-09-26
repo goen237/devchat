@@ -17,15 +17,20 @@ export const redisClient = createClient({
   
   // Optionale Konfiguration
   socket: {
-    // Reconnect-Strategie: Versuche alle 1000ms neu zu verbinden
-    reconnectStrategy: (retries) => {
-      if (retries > 10) {
-        // Nach 10 Versuchen aufgeben
-        console.error('❌ Redis: Too many reconnection attempts. Giving up.');
-        return new Error('Redis connection failed');
+    // Reconnect-Strategie: abgestuftes Backoff, stoppt nach mehreren Versuchen
+    reconnectStrategy: (retries, cause) => {
+      // Stoppe die Versuche nach N Wiederholungen (gibt ein Error zurück, damit der Client das als Abbruch behandelt)
+      const MAX_RETRIES = 10;
+      if (retries > MAX_RETRIES) {
+        console.warn('❌ Redis: Too many reconnection attempts. Stopping retries.', cause);
+        // Ein Error signalisiert dem Client, dass keine weiteren Versuche geplant sind und liefert den Grund
+        return new Error('Too many reconnection attempts');
       }
-      console.log(`🔄 Redis: Reconnecting... (Attempt ${retries})`);
-      return 1000; // Warte 1 Sekunde vor erneutem Versuch
+
+      // Linear/backoff delay (erste Versuche kurz, später länger, begrenzt auf 30s)
+      const delay = Math.min(1000 * (retries + 1), 30_000);
+      console.log(`🔄 Redis: Reconnecting in ${delay}ms (attempt ${retries + 1})`);
+      return delay;
     }
   }
 });

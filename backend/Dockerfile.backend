@@ -9,17 +9,19 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
+COPY pnpm-lock.yaml ./
 COPY tsconfig.json ./
 
 # Install ALL dependencies (including devDependencies for build)
 # Delete package-lock.json if corrupt, then install fresh
-RUN rm -f package-lock.json && npm install
+RUN corepack enable && corepack prepare pnpm@latest --activate \
+  && pnpm install --frozen-lockfile
 
 # Copy source code
 COPY src ./src
 
 # Build TypeScript
-RUN npm run build
+RUN pnpm run build
 
 
 
@@ -29,12 +31,15 @@ FROM node:20-alpine
 # Install production dependencies only
 WORKDIR /app
 
-# Copy package files
+# Copy package files and lockfile for reproducible production install
 COPY package*.json ./
+COPY pnpm-lock.yaml ./
 
-# Install production dependencies only
-# Delete package-lock.json if corrupt, then install fresh
-RUN rm -f package-lock.json && npm install --production && npm cache clean --force
+ENV NODE_ENV=production
+
+# Install production dependencies using Corepack + pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate \
+  && pnpm install --prod --frozen-lockfile && pnpm store prune
 
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist

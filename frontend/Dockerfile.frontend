@@ -7,18 +7,18 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
+COPY pnpm-lock.yaml ./
 
-# Install dependencies
-# --legacy-peer-deps: Ignoriert Peer Dependency Konflikte (React 19 vs mdb-react-ui-kit)
-# Delete package-lock.json if corrupt, then install fresh
-RUN rm -f package-lock.json && npm install
+# Install dependencies using Corepack + pnpm for reproducible installs
+# --frozen-lockfile ensures the lockfile is respected
+RUN corepack enable && corepack prepare pnpm@latest --activate \
+  && pnpm install --frozen-lockfile
 
 # Copy source code
 COPY . .
 
 # Build application
-RUN npm run build
-
+RUN pnpm run build
 
 
 # Stage 2: Production
